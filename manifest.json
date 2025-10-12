@@ -2,7 +2,7 @@
   "name": "Mountain Route Planner",
   "short_name": "Route Planner",
   "description": "Plan your mountaineering routes with precision",
-  "start_url": "/",
+  "start_url": "/gpx-route-planner/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
