@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="Mountain Route Planner Test" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>Mont Blanc Test Route</name>
+    <desc>A sample mountaineering route for testing</desc>
+  </metadata>
+  <trk>
+    <name>Mont Blanc Ascent</name>
+    <trkseg>
+      <trkpt lat="45.8326" lon="6.8652">
+        <ele>1035</ele>
+      </trkpt>
+      <trkpt lat="45.8450" lon="6.8700">
+        <ele>1400</ele>
+      </trkpt>
+      <trkpt lat="45.8550" lon="6.8750">
+        <ele>1800</ele>
+      </trkpt>
+      <trkpt lat="45.8650" lon="6.8800">
+        <ele>2200</ele>
+      </trkpt>
+      <trkpt lat="45.8750" lon="6.8850">
+        <ele>2800</ele>
+      </trkpt>
+      <trkpt lat="45.8832" lon="6.8652">
+        <ele>4810</ele>
+      </trkpt>
+    </trkseg>
+  </trk>
+  <wpt lat="45.8326" lon="6.8652">
+    <ele>1035</ele>
+    <name>Chamonix Start</name>
+  </wpt>
+  <wpt lat="45.8450" lon="6.8700">
+    <ele>1400</ele>
+    <name>Waypoint 1</name>
+  </wpt>
+  <wpt lat="45.8550" lon="6.8750">
+    <ele>1800</ele>
+    <name>Waypoint 2</name>
+  </wpt>
+  <wpt lat="45.8650" lon="6.8800">
+    <ele>2200</ele>
+    <name>Refuge</name>
+  </wpt>
+  <wpt lat="45.8750" lon="6.8850">
+    <ele>2800</ele>
+    <name>High Camp</name>
+  </wpt>
+  <wpt lat="45.8832" lon="6.8652">
+    <ele>4810</ele>
+    <name>Mont Blanc Summit</name>
+  </wpt>
+</gpx>
+
