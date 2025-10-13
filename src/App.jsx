@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Upload, Mountain, Settings, FileText, Trash2, Download } from 'lucide-react'
 import { parseGPXFile, recalculateWaypoints } from './lib/calculationService.js'
 import { exportRouteToPDF } from './lib/pdfExportService.js'
+import GitHubCorner from './components/GitHubCorner.jsx'
 import './App.css'
 
 function App() {
@@ -135,7 +136,8 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6 relative">
+      <GitHubCorner url="https://github.com/Campano/gpx-route-planner/issues" />
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
