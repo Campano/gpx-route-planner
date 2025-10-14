@@ -25,41 +25,145 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 /**
- * Calculate segment time based on distance, elevation change, speed settings, and terrain penalty
- * @param {number} distance - Segment distance in km
- * @param {number} elevationGain - Elevation gain in meters
- * @param {number} elevationLoss - Elevation loss in meters
- * @param {number} terrainPenalty - Terrain difficulty penalty (e.g., 0.1 for 10%)
- * @param {Object} settings - User speed settings
- * @returns {number} Time in minutes
+ * Convert latitude/longitude to UTM coordinates (simplified)
+ * @param {number} lat - Latitude
+ * @param {number} lon - Longitude
+ * @returns {string} UTM coordinates as string
  */
-function calculateSegmentTime(distance, elevationGain, elevationLoss, terrainPenalty, settings) {
-  const { ascentSpeed, descentSpeed, flatSpeed } = settings;
-  
-  // Base time calculation
-  let baseTime = 0;
-  
-  if (elevationGain > 0) {
-    // For ascent, use ascent speed
-    baseTime += (distance / ascentSpeed) * 60;
-  } else if (elevationLoss > 0) {
-    // For descent, use descent speed
-    baseTime += (distance / descentSpeed) * 60;
-  } else {
-    // For flat, use flat speed
-    baseTime += (distance / flatSpeed) * 60;
-  }
-  
-  // Apply terrain difficulty penalty
-  const adjustedTime = baseTime * (1 + terrainPenalty);
-  
-  return adjustedTime;
+function convertToUTM(lat, lon) {
+  // Simplified UTM conversion - in a real implementation, you'd use a proper UTM library
+  // For now, we'll create a simple representation
+  const zone = Math.floor((lon + 180) / 6) + 1;
+  const easting = Math.round((lon + 180) * 1000000) % 1000000;
+  const northing = Math.round((lat + 90) * 1000000) % 1000000;
+  return `Zone ${zone} ${easting.toFixed(0)}E ${northing.toFixed(0)}N`;
 }
 
 /**
- * Parse GPX file and extract waypoints with calculations
+ * Calculate segment time using proper t = sum(d/v) formula (pure movement time only)
+ * @param {number} distance - Segment distance in km
+ * @param {number} elevationGain - Elevation gain in meters
+ * @param {number} elevationLoss - Elevation loss in meters
+ * @param {Object} settings - User speed settings with speeds in m/h
+ * @returns {number} Time in minutes
+ */
+function calculateSegmentTime(distance, elevationGain, elevationLoss, settings) {
+  const { ascentSpeed, descentSpeed, flatSpeed } = settings;
+  
+  // Convert distance from km to meters
+  const distanceMeters = distance * 1000;
+  
+  let totalTime = 0;
+  
+  // Calculate time for each component: t = d/v
+  
+  // 1. Flat distance time (horizontal movement)
+  const flatDistance = distanceMeters - elevationGain - elevationLoss;
+  if (flatDistance > 0) {
+    const flatTime = flatDistance / flatSpeed; // Time in hours
+    totalTime += flatTime;
+  }
+  
+  // 2. Ascent time (vertical movement up)
+  if (elevationGain > 0) {
+    const ascentTime = elevationGain / ascentSpeed; // Time in hours
+    totalTime += ascentTime;
+  }
+  
+  // 3. Descent time (vertical movement down)
+  if (elevationLoss > 0) {
+    const descentTime = elevationLoss / descentSpeed; // Time in hours
+    totalTime += descentTime;
+  }
+  
+  // Convert from hours to minutes (no terrain penalty applied here)
+  return totalTime * 60;
+}
+
+/**
+ * Find the closest point on a track to a given waypoint
+ * @param {Object} waypoint - Waypoint with lat/lon
+ * @param {Array} trackPoints - Array of track points
+ * @param {number} maxDistance - Maximum distance in meters to consider "close"
+ * @returns {Object|null} Closest track point and distance, or null if too far
+ */
+function findClosestTrackPoint(waypoint, trackPoints, maxDistance = 100) {
+  let closestPoint = null;
+  let closestDistance = Infinity;
+  let closestIndex = -1;
+  
+  trackPoints.forEach((trackPoint, index) => {
+    const distance = calculateDistance(
+      waypoint.latitude,
+      waypoint.longitude,
+      trackPoint.latitude,
+      trackPoint.longitude
+    ) * 1000; // Convert to meters
+    
+    if (distance < closestDistance && distance <= maxDistance) {
+      closestDistance = distance;
+      closestPoint = trackPoint;
+      closestIndex = index;
+    }
+  });
+  
+  return closestPoint ? { point: closestPoint, distance: closestDistance, index: closestIndex } : null;
+}
+
+/**
+ * Create route segments by splitting track at waypoints
+ * @param {Array} trackPoints - All track points
+ * @param {Array} waypoints - GPX waypoints
+ * @returns {Array} Array of route segments
+ */
+function createRouteSegments(trackPoints, waypoints) {
+  const segments = [];
+  let currentSegmentStart = 0;
+  
+  // Sort waypoints by their position on the track
+  const waypointsWithPosition = waypoints.map(waypoint => {
+    const closest = findClosestTrackPoint(waypoint, trackPoints, 200); // 200m tolerance
+    return {
+      ...waypoint,
+      trackPosition: closest ? closest.index : -1,
+      trackDistance: closest ? closest.distance : Infinity
+    };
+  }).filter(wp => wp.trackPosition !== -1) // Only keep waypoints that are close to track
+   .sort((a, b) => a.trackPosition - b.trackPosition);
+  
+  // Create segments between waypoints
+  waypointsWithPosition.forEach((waypoint, index) => {
+    const segmentEnd = waypoint.trackPosition;
+    
+    if (segmentEnd > currentSegmentStart) {
+      segments.push({
+        startIndex: currentSegmentStart,
+        endIndex: segmentEnd,
+        waypoint: waypoint,
+        trackPoints: trackPoints.slice(currentSegmentStart, segmentEnd + 1)
+      });
+      
+      currentSegmentStart = segmentEnd;
+    }
+  });
+  
+  // Add final segment from last waypoint to end of track
+  if (currentSegmentStart < trackPoints.length - 1) {
+    segments.push({
+      startIndex: currentSegmentStart,
+      endIndex: trackPoints.length - 1,
+      waypoint: null, // End of route
+      trackPoints: trackPoints.slice(currentSegmentStart)
+    });
+  }
+  
+  return segments;
+}
+
+/**
+ * Parse GPX file and extract waypoints with calculations using track-based routing
  * @param {string} gpxContent - GPX file content as string
- * @param {Object} settings - User speed settings
+ * @param {Object} settings - User speed settings including distanceCalculationMethod
  * @returns {Object} Parsed route with waypoints
  */
 export function parseGPXFile(gpxContent, settings) {
@@ -70,96 +174,180 @@ export function parseGPXFile(gpxContent, settings) {
       throw new Error(`GPX parsing error: ${error}`);
     }
     
-    // Extract track points (we'll use the first track)
+    // Extract tracks and waypoints
     const tracks = parsedGPX.tracks || [];
+    const gpxWaypoints = parsedGPX.waypoints || [];
+    
     if (tracks.length === 0) {
       throw new Error('No tracks found in GPX file');
     }
     
     const track = tracks[0];
-    // In gpxjs, points are directly on the track object, not in segments
-    const allPoints = track.points || [];
+    const trackPoints = track.points || [];
     
-    if (allPoints.length === 0) {
+    if (trackPoints.length === 0) {
       throw new Error('No points found in track');
     }
     
-    // Convert points to waypoints with calculations
+    // Check distance calculation method
+    const distanceMethod = settings.distanceCalculationMethod || 'track';
+    
+    // If using waypoint-to-waypoint method, use simpler calculation
+    if (distanceMethod === 'waypoint-to-waypoint') {
+      return parseWaypointToWaypoint(gpxWaypoints, trackPoints, settings, track.name);
+    }
+    
+    // Create route segments based on waypoints (track-based method)
+    const routeSegments = createRouteSegments(trackPoints, gpxWaypoints);
+    
+    // If no waypoints are close to the track, use track points as waypoints
+    if (routeSegments.length === 0) {
+      console.warn('No waypoints found close to track, using track points as waypoints');
+      return parseTrackAsWaypoints(trackPoints, settings, track.name);
+    }
+    
+    // Convert segments to waypoints with calculations
     const waypoints = [];
     let totalDistance = 0;
     let totalAscent = 0;
     let totalDescent = 0;
     let totalTime = 0;
     
-    allPoints.forEach((point, index) => {
-      let segmentDistance = 0;
-      let segmentAscent = 0;
-      let segmentDescent = 0;
-      let segmentTime = 0;
+    // Add start waypoint
+    if (trackPoints.length > 0) {
+      const startPoint = trackPoints[0];
+      waypoints.push({
+        id: 'waypoint-start',
+        name: 'Start',
+        isDecisionPoint: false,
+        isStartPoint: true,
+        latitude: startPoint.latitude,
+        longitude: startPoint.longitude,
+        elevation: startPoint.elevation || 0,
+        segmentDistance: 0,
+        segmentAscent: 0,
+        segmentDescent: 0,
+        totalDistance: 0,
+        totalAscent: 0,
+        totalDescent: 0,
+        terrainDifficultyPenalty: 0,
+        stopDuration: 0,
+        segmentTime: 0,
+        totalTime: 0,
+        timeTillArrival: 0,
+        hour: calculateArrivalTime(settings.startTime || '08:00', 0),
+        comments: '',
+        utm: convertToUTM(startPoint.latitude, startPoint.longitude)
+      });
+    }
+    
+    routeSegments.forEach((segment, segmentIndex) => {
+      const segmentWaypoints = segment.trackPoints;
+      let segmentTotalDistance = 0;
+      let segmentTotalAscent = 0;
+      let segmentTotalDescent = 0;
+      let segmentTotalTime = 0;
       
-      if (index > 0) {
-        const prevPoint = allPoints[index - 1];
+      // Process each point in the segment
+      segmentWaypoints.forEach((point, pointIndex) => {
+        let segmentDistance = 0;
+        let segmentAscent = 0;
+        let segmentDescent = 0;
+        let segmentTime = 0;
         
-        // Calculate segment distance
-        segmentDistance = calculateDistance(
-          prevPoint.latitude,
-          prevPoint.longitude,
-          point.latitude,
-          point.longitude
-        );
-        
-        // Calculate elevation changes
-        const elevationChange = point.elevation - prevPoint.elevation;
-        if (elevationChange > 0) {
-          segmentAscent = elevationChange;
-        } else {
-          segmentDescent = Math.abs(elevationChange);
+        if (pointIndex > 0) {
+          const prevPoint = segmentWaypoints[pointIndex - 1];
+          
+          // Calculate segment distance
+          segmentDistance = calculateDistance(
+            prevPoint.latitude,
+            prevPoint.longitude,
+            point.latitude,
+            point.longitude
+          );
+          
+          // Calculate elevation changes
+          const elevationChange = (point.elevation || 0) - (prevPoint.elevation || 0);
+          if (elevationChange > 0) {
+            segmentAscent = elevationChange;
+          } else {
+            segmentDescent = Math.abs(elevationChange);
+          }
+          
+          // Calculate segment time (pure movement time only)
+          segmentTime = calculateSegmentTime(
+            segmentDistance,
+            segmentAscent,
+            segmentDescent,
+            settings
+          );
+          
+          segmentTotalDistance += segmentDistance;
+          segmentTotalAscent += segmentAscent;
+          segmentTotalDescent += segmentDescent;
+          segmentTotalTime += segmentTime;
         }
         
-        // Calculate segment time (with default 0 penalty and 0 stop)
-        segmentTime = calculateSegmentTime(
-          segmentDistance,
-          segmentAscent,
-          segmentDescent,
-          0, // Default terrain penalty
-          settings
-        );
-        
-        totalDistance += segmentDistance;
-        totalAscent += segmentAscent;
-        totalDescent += segmentDescent;
-        totalTime += segmentTime;
-      }
-      
+        // Only create waypoint for the last point of each segment (the actual waypoint)
+        if (pointIndex === segmentWaypoints.length - 1 && segment.waypoint) {
+          totalDistance += segmentTotalDistance;
+          totalAscent += segmentTotalAscent;
+          totalDescent += segmentTotalDescent;
+          totalTime += segmentTotalTime;
+          
+          waypoints.push({
+            id: `waypoint-${waypoints.length}`,
+            name: segment.waypoint.name || `Waypoint ${waypoints.length + 1}`,
+            isDecisionPoint: false,
+            latitude: point.latitude,
+            longitude: point.longitude,
+            elevation: point.elevation || 0,
+            segmentDistance: segmentTotalDistance,
+            segmentAscent: segmentTotalAscent,
+            segmentDescent: segmentTotalDescent,
+            totalDistance: totalDistance,
+            totalAscent: totalAscent,
+            totalDescent: totalDescent,
+            terrainDifficultyPenalty: 0,
+            stopDuration: 0,
+            segmentTime: segmentTotalTime,
+            totalTime: totalTime,
+            timeTillArrival: totalTime,
+            hour: calculateArrivalTime(settings.startTime || '08:00', totalTime),
+            comments: segment.waypoint.comment || '',
+            utm: convertToUTM(point.latitude, point.longitude)
+          });
+        }
+      });
+    });
+    
+    // Add end waypoint
+    if (trackPoints.length > 0) {
+      const endPoint = trackPoints[trackPoints.length - 1];
       waypoints.push({
-        id: `waypoint-${index}`,
-        name: point.name || `Point ${index + 1}`,
+        id: 'waypoint-end',
+        name: 'End',
         isDecisionPoint: false,
-        latitude: point.latitude,
-        longitude: point.longitude,
-        elevation: point.elevation || 0,
-        segmentDistance: segmentDistance,
-        segmentAscent: segmentAscent,
-        segmentDescent: segmentDescent,
+        isEndPoint: true,
+        latitude: endPoint.latitude,
+        longitude: endPoint.longitude,
+        elevation: endPoint.elevation || 0,
+        segmentDistance: 0,
+        segmentAscent: 0,
+        segmentDescent: 0,
         totalDistance: totalDistance,
         totalAscent: totalAscent,
         totalDescent: totalDescent,
         terrainDifficultyPenalty: 0,
         stopDuration: 0,
-        segmentTime: segmentTime,
+        segmentTime: 0,
         totalTime: totalTime,
-        timeTillArrival: 0, // Will be calculated later
-        hour: '', // Will be calculated later
-        comments: ''
+        timeTillArrival: totalTime,
+        hour: calculateArrivalTime(settings.startTime || '08:00', totalTime),
+        comments: '',
+        utm: convertToUTM(endPoint.latitude, endPoint.longitude)
       });
-    });
-    
-    // Calculate time till arrival and hour for each waypoint
-    const startTime = settings.startTime || '08:00';
-    waypoints.forEach((waypoint, index) => {
-      waypoint.timeTillArrival = waypoint.totalTime;
-      waypoint.hour = calculateArrivalTime(startTime, waypoint.totalTime);
-    });
+    }
     
     return {
       gpxData: parsedGPX,
@@ -175,6 +363,304 @@ export function parseGPXFile(gpxContent, settings) {
     console.error('Error parsing GPX file:', error);
     throw error;
   }
+}
+
+/**
+ * Parse waypoints using waypoint-to-waypoint distance calculation
+ * @param {Array} gpxWaypoints - GPX waypoints
+ * @param {Array} trackPoints - Track points (for reference)
+ * @param {Object} settings - User speed settings
+ * @param {string} trackName - Track name
+ * @returns {Object} Parsed route with waypoints
+ */
+function parseWaypointToWaypoint(gpxWaypoints, trackPoints, settings, trackName) {
+  if (gpxWaypoints.length === 0) {
+    console.warn('No waypoints found, using track points as waypoints');
+    return parseTrackAsWaypoints(trackPoints, settings, trackName);
+  }
+  
+  const waypoints = [];
+  let totalDistance = 0;
+  let totalAscent = 0;
+  let totalDescent = 0;
+  let totalTime = 0;
+  
+  // Add start waypoint
+  if (trackPoints.length > 0) {
+    const startPoint = trackPoints[0];
+    waypoints.push({
+      id: 'waypoint-start',
+      name: 'Start',
+      isDecisionPoint: false,
+      isStartPoint: true,
+      latitude: startPoint.latitude,
+      longitude: startPoint.longitude,
+      elevation: startPoint.elevation || 0,
+      segmentDistance: 0,
+      segmentAscent: 0,
+      segmentDescent: 0,
+      totalDistance: 0,
+      totalAscent: 0,
+      totalDescent: 0,
+      terrainDifficultyPenalty: 0,
+      stopDuration: 0,
+      segmentTime: 0,
+      totalTime: 0,
+      timeTillArrival: 0,
+      hour: calculateArrivalTime(settings.startTime || '08:00', 0),
+      comments: '',
+      utm: convertToUTM(startPoint.latitude, startPoint.longitude)
+    });
+  }
+  
+  gpxWaypoints.forEach((waypoint, index) => {
+    let segmentDistance = 0;
+    let segmentAscent = 0;
+    let segmentDescent = 0;
+    let segmentTime = 0;
+    
+    if (index > 0) {
+      const prevWaypoint = gpxWaypoints[index - 1];
+      
+      // Calculate straight-line distance between waypoints
+      segmentDistance = calculateDistance(
+        prevWaypoint.latitude,
+        prevWaypoint.longitude,
+        waypoint.latitude,
+        waypoint.longitude
+      );
+      
+      // Calculate elevation changes
+      const elevationChange = (waypoint.elevation || 0) - (prevWaypoint.elevation || 0);
+      if (elevationChange > 0) {
+        segmentAscent = elevationChange;
+      } else {
+        segmentDescent = Math.abs(elevationChange);
+      }
+      
+      // Calculate segment time (pure movement time only)
+      segmentTime = calculateSegmentTime(
+        segmentDistance,
+        segmentAscent,
+        segmentDescent,
+        settings
+      );
+      
+      totalDistance += segmentDistance;
+      totalAscent += segmentAscent;
+      totalDescent += segmentDescent;
+      totalTime += segmentTime;
+    }
+    
+    waypoints.push({
+      id: `waypoint-${index}`,
+      name: waypoint.name || `Waypoint ${index + 1}`,
+      isDecisionPoint: false,
+      latitude: waypoint.latitude,
+      longitude: waypoint.longitude,
+      elevation: waypoint.elevation || 0,
+      segmentDistance: segmentDistance,
+      segmentAscent: segmentAscent,
+      segmentDescent: segmentDescent,
+      totalDistance: totalDistance,
+      totalAscent: totalAscent,
+      totalDescent: totalDescent,
+      terrainDifficultyPenalty: 0,
+      stopDuration: 0,
+      segmentTime: segmentTime,
+      totalTime: totalTime,
+      timeTillArrival: totalTime,
+      hour: calculateArrivalTime(settings.startTime || '08:00', totalTime),
+      comments: waypoint.comment || '',
+      utm: convertToUTM(waypoint.latitude, waypoint.longitude)
+    });
+  });
+  
+  // Add end waypoint
+  if (trackPoints.length > 0) {
+    const endPoint = trackPoints[trackPoints.length - 1];
+    waypoints.push({
+      id: 'waypoint-end',
+      name: 'End',
+      isDecisionPoint: false,
+      isEndPoint: true,
+      latitude: endPoint.latitude,
+      longitude: endPoint.longitude,
+      elevation: endPoint.elevation || 0,
+      segmentDistance: 0,
+      segmentAscent: 0,
+      segmentDescent: 0,
+      totalDistance: totalDistance,
+      totalAscent: totalAscent,
+      totalDescent: totalDescent,
+      terrainDifficultyPenalty: 0,
+      stopDuration: 0,
+      segmentTime: 0,
+      totalTime: totalTime,
+      timeTillArrival: totalTime,
+      hour: calculateArrivalTime(settings.startTime || '08:00', totalTime),
+      comments: '',
+      utm: convertToUTM(endPoint.latitude, endPoint.longitude)
+    });
+  }
+  
+  return {
+    gpxData: { tracks: [{ points: trackPoints, name: trackName }], waypoints: gpxWaypoints },
+    waypoints: waypoints,
+    metadata: {
+      name: trackName || 'Unnamed Route',
+      totalDistance: totalDistance,
+      totalAscent: totalAscent,
+      totalDescent: totalDescent
+    }
+  };
+}
+
+/**
+ * Fallback: Parse track points as waypoints when no GPX waypoints are found
+ * @param {Array} trackPoints - Track points
+ * @param {Object} settings - User speed settings
+ * @param {string} trackName - Track name
+ * @returns {Object} Parsed route with waypoints
+ */
+function parseTrackAsWaypoints(trackPoints, settings, trackName) {
+  const waypoints = [];
+  let totalDistance = 0;
+  let totalAscent = 0;
+  let totalDescent = 0;
+  let totalTime = 0;
+  
+  // Add start waypoint
+  if (trackPoints.length > 0) {
+    const startPoint = trackPoints[0];
+    waypoints.push({
+      id: 'waypoint-start',
+      name: 'Start',
+      isDecisionPoint: false,
+      isStartPoint: true,
+      latitude: startPoint.latitude,
+      longitude: startPoint.longitude,
+      elevation: startPoint.elevation || 0,
+      segmentDistance: 0,
+      segmentAscent: 0,
+      segmentDescent: 0,
+      totalDistance: 0,
+      totalAscent: 0,
+      totalDescent: 0,
+      terrainDifficultyPenalty: 0,
+      stopDuration: 0,
+      segmentTime: 0,
+      totalTime: 0,
+      timeTillArrival: 0,
+      hour: calculateArrivalTime(settings.startTime || '08:00', 0),
+      comments: '',
+      utm: convertToUTM(startPoint.latitude, startPoint.longitude)
+    });
+  }
+  
+  // Sample track points to create reasonable number of waypoints
+  const sampleInterval = Math.max(1, Math.floor(trackPoints.length / 20)); // Max 20 waypoints
+  
+  trackPoints.forEach((point, index) => {
+    if (index % sampleInterval === 0 || index === trackPoints.length - 1) {
+      let segmentDistance = 0;
+      let segmentAscent = 0;
+      let segmentDescent = 0;
+      let segmentTime = 0;
+      
+      if (index > 0) {
+        const prevPoint = trackPoints[index - 1];
+        
+        segmentDistance = calculateDistance(
+          prevPoint.latitude,
+          prevPoint.longitude,
+          point.latitude,
+          point.longitude
+        );
+        
+        const elevationChange = (point.elevation || 0) - (prevPoint.elevation || 0);
+        if (elevationChange > 0) {
+          segmentAscent = elevationChange;
+        } else {
+          segmentDescent = Math.abs(elevationChange);
+        }
+        
+        segmentTime = calculateSegmentTime(
+          segmentDistance,
+          segmentAscent,
+          segmentDescent,
+          settings
+        );
+        
+        totalDistance += segmentDistance;
+        totalAscent += segmentAscent;
+        totalDescent += segmentDescent;
+        totalTime += segmentTime;
+      }
+      
+      waypoints.push({
+        id: `waypoint-${waypoints.length}`,
+        name: point.name || `Point ${waypoints.length + 1}`,
+        isDecisionPoint: false,
+        latitude: point.latitude,
+        longitude: point.longitude,
+        elevation: point.elevation || 0,
+        segmentDistance: segmentDistance,
+        segmentAscent: segmentAscent,
+        segmentDescent: segmentDescent,
+        totalDistance: totalDistance,
+        totalAscent: totalAscent,
+        totalDescent: totalDescent,
+        terrainDifficultyPenalty: 0,
+        stopDuration: 0,
+        segmentTime: segmentTime,
+        totalTime: totalTime,
+        timeTillArrival: totalTime,
+        hour: calculateArrivalTime(settings.startTime || '08:00', totalTime),
+        comments: '',
+        utm: convertToUTM(point.latitude, point.longitude)
+      });
+    }
+    });
+    
+    // Add end waypoint
+    if (trackPoints.length > 0) {
+      const endPoint = trackPoints[trackPoints.length - 1];
+      waypoints.push({
+        id: 'waypoint-end',
+        name: 'End',
+        isDecisionPoint: false,
+        isEndPoint: true,
+        latitude: endPoint.latitude,
+        longitude: endPoint.longitude,
+        elevation: endPoint.elevation || 0,
+        segmentDistance: 0,
+        segmentAscent: 0,
+        segmentDescent: 0,
+        totalDistance: totalDistance,
+        totalAscent: totalAscent,
+        totalDescent: totalDescent,
+        terrainDifficultyPenalty: 0,
+        stopDuration: 0,
+        segmentTime: 0,
+        totalTime: totalTime,
+        timeTillArrival: totalTime,
+        hour: calculateArrivalTime(settings.startTime || '08:00', totalTime),
+        comments: '',
+        utm: convertToUTM(endPoint.latitude, endPoint.longitude)
+      });
+    }
+    
+    return {
+    gpxData: { tracks: [{ points: trackPoints, name: trackName }] },
+      waypoints: waypoints,
+      metadata: {
+      name: trackName || 'Unnamed Route',
+        totalDistance: totalDistance,
+        totalAscent: totalAscent,
+        totalDescent: totalDescent
+      }
+    };
 }
 
 /**
@@ -197,6 +683,45 @@ function calculateArrivalTime(startTime, elapsedMinutes) {
 }
 
 /**
+ * Format minutes as hours and minutes
+ * @param {number} minutes - Time in minutes
+ * @returns {string} Formatted time as "Xh Ym" or "Ym" if less than 1 hour
+ */
+export function formatTimeHoursMinutes(minutes) {
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = Math.round(minutes % 60);
+  
+  if (hours > 0) {
+    return `${hours}h ${remainingMinutes}m`;
+  } else {
+    return `${remainingMinutes}m`;
+  }
+}
+
+export function formatTimeHoursMinutesForMin(minutes) {
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = Math.round(minutes % 60);
+  
+  if (hours > 0) {
+    return `${hours}h ${remainingMinutes}min`;
+  } else {
+    return `${remainingMinutes}min`;
+  }
+}
+
+/**
+ * Format total time with percentage of total route time
+ * @param {number} currentTime - Current total time in minutes
+ * @param {number} routeTotalTime - Total route time in minutes
+ * @returns {string} Formatted time with percentage
+ */
+export function formatTotalTimeWithPercentage(currentTime, routeTotalTime) {
+  const formattedTime = formatTimeHoursMinutes(currentTime);
+  const percentage = routeTotalTime > 0 ? Math.round((currentTime / routeTotalTime) * 100) : 0;
+  return `${formattedTime} (${percentage}%)`;
+}
+
+/**
  * Recalculate waypoint times based on updated settings or waypoint data
  * @param {Array} waypoints - Array of waypoints
  * @param {Object} settings - User speed settings
@@ -209,17 +734,17 @@ export function recalculateWaypoints(waypoints, settings) {
     let segmentTime = 0;
     
     if (index > 0) {
-      // Recalculate segment time with current terrain penalty
+      // Recalculate segment time (pure movement time only)
       segmentTime = calculateSegmentTime(
         waypoint.segmentDistance,
         waypoint.segmentAscent,
         waypoint.segmentDescent,
-        waypoint.terrainDifficultyPenalty,
         settings
       );
       
-      // Add stop duration
-      totalTime += segmentTime + waypoint.stopDuration;
+      // Apply terrain penalty and rest time to total time only
+      const segmentWithAdaptations = segmentTime * (1 + waypoint.terrainDifficultyPenalty) + waypoint.stopDuration;
+      totalTime += segmentWithAdaptations;
     }
     
     return {

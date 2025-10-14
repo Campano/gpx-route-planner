@@ -1,7 +1,7 @@
 {
   "name": "mountain-route-planner",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "homepage": "https://campano.github.io/gpx-route-planner",
   "scripts": {

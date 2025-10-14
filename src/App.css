@@ -160,3 +160,34 @@
     animation: octocat-wave 560ms ease-in-out;
   }
 }
+
+/* Show routes button micro animation */
+@keyframes show-routes-appear {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(-2px);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.02) translateY(-1px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.show-routes-button {
+  animation: show-routes-appear 0.2s ease-out;
+}
+
+/* Hide button hover effect */
+.route-manager-hide-btn {
+  transition: all 0.2s ease;
+}
+
+.route-manager-hide-btn:hover {
+  background-color: hsl(var(--muted));
+  transform: scale(1.1);
+}
+
