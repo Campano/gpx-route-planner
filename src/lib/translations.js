@@ -9,12 +9,36 @@ export const translations = {
     appDescription: "Plan your mountaineering routes with precision",
     
     // Buttons
-    routeManager: "Route Manager",
-    generalSettings: "General Settings",
+    routeManager: "Routes",
+    generalSettings: "Settings",
     help: "Help",
-    routeSettings: "Route Settings",
+    routeSettings: "Configuration",
+    routeSettingsDesc: "Configure settings for \"{routeName}\" (overrides default)",
+    routeSpecificSettings: "Route-specific settings",
+    useDefaults: "Use Defaults",
+    ascentSpeedLabel: "Ascent Speed (m/h)",
+    descentSpeedLabel: "Descent Speed (m/h)",
+    flatSpeedLabel: "Flat Speed (m/h)",
+    startingTimeLabel: "Starting Time",
+    safetyTimeLabel: "Safety Time (%)",
+    distanceCalculation: "Distance Calculation",
+    trackBased: "Track-based (recommended)",
+    waypointToWaypoint: "Waypoint to waypoint",
+    trackBasedDesc: "Uses actual track path for accurate distances",
+    waypointToWaypointDesc: "Uses straight-line distance between waypoints",
+    routeStatistics: "Route Statistics",
+    startingTime: "Starting Time",
+    endingTime: "Ending Time",
+    duration: "Duration",
+    speedSettings: "Speed Settings",
+    utmZones: "UTM Zone",
+    distance: "Distance",
+    ascent: "Ascent",
+    descent: "Descent",
+    maxElevation: "Max Elevation",
     exportPDF: "Export PDF",
     addRoute: "New Route",
+    addRouteTitle: "Add Route",
     close: "Close",
     
     // Route Details
@@ -22,8 +46,13 @@ export const translations = {
     newRoute: "New Route",
     waypoints: "waypoints",
     uploadGPX: "Upload a GPX file to create a new route",
+    noRouteSelected: "No Route Selected",
+    noRouteSelectedDesc: "Select a route from the Routes panel or upload a new GPX file",
+    viewRoutes: "View Routes",
     
     // Table Headers
+    waypoint: "Waypoint",
+    distance: "Distance",
     location: "Location",
     segment: "Segment",
     route: "Route",
@@ -126,6 +155,24 @@ export const translations = {
     
     // About
     packageManager: "Package Manager",
+    
+    // Activity modes
+    activityMode: "Activity Mode",
+    hiking: "Hiking",
+    snowshoes: "Snowshoes",
+    skiTouring: "Ski Touring",
+    
+    // Data management
+    cleanAllData: "Clean All Data",
+    cleanAllDataConfirm: "Are you sure?",
+    cleanAllDataMessage: "This will permanently delete all saved routes and personal settings. This action cannot be undone.",
+    confirm: "Confirm",
+    cancel: "Cancel",
+    
+    // Donation
+    donate: "Donate",
+    donateDesc: "Support the development of this project",
+    donateMessage: "If you find this tool useful, consider supporting its development. Your contribution helps keep the project alive and enables new features."
   },
   
   fr: {
@@ -134,12 +181,36 @@ export const translations = {
     appDescription: "Planifiez vos routes d'alpinisme avec précision",
     
     // Buttons
-    routeManager: "Gestionnaire de Routes",
-    generalSettings: "Paramètres Généraux",
+    routeManager: "Routes",
+    generalSettings: "Paramètres",
     help: "Aide",
-    routeSettings: "Paramètres de Route",
+    routeSettings: "Configuration",
+    routeSettingsDesc: "Configurer les paramètres pour \"{routeName}\" (remplace les valeurs par défaut)",
+    routeSpecificSettings: "Paramètres spécifiques à la route",
+    useDefaults: "Utiliser les Valeurs par Défaut",
+    ascentSpeedLabel: "Vitesse de Montée (m/h)",
+    descentSpeedLabel: "Vitesse de Descente (m/h)",
+    flatSpeedLabel: "Vitesse sur Terrain Plat (m/h)",
+    startingTimeLabel: "Heure de Départ",
+    safetyTimeLabel: "Temps de Sécurité (%)",
+    distanceCalculation: "Calcul de Distance",
+    trackBased: "Basé sur la piste (recommandé)",
+    waypointToWaypoint: "Point à point",
+    trackBasedDesc: "Utilise le chemin réel de la piste pour des distances précises",
+    waypointToWaypointDesc: "Utilise la distance en ligne droite entre les points",
+    routeStatistics: "Statistiques de Route",
+    startingTime: "Heure de Départ",
+    endingTime: "Heure d'Arrivée",
+    duration: "Durée",
+    speedSettings: "Paramètres de Vitesse",
+    utmZones: "Zone UTM",
+    distance: "Distance",
+    ascent: "Montée",
+    descent: "Descente",
+    maxElevation: "Altitude Max",
     exportPDF: "Exporter PDF",
     addRoute: "Nouvelle Route",
+    addRouteTitle: "Ajouter Route",
     close: "Fermer",
     
     // Route Details
@@ -147,8 +218,13 @@ export const translations = {
     newRoute: "Nouvelle Route",
     waypoints: "points de passage",
     uploadGPX: "Téléchargez un fichier GPX pour créer une nouvelle route",
+    noRouteSelected: "Aucune Route Sélectionnée",
+    noRouteSelectedDesc: "Sélectionnez une route dans le panneau Routes ou téléchargez un nouveau fichier GPX",
+    viewRoutes: "Voir les Routes",
     
     // Table Headers
+    waypoint: "Point de Passage",
+    distance: "Distance",
     location: "Emplacement",
     segment: "Segment",
     route: "Route",
@@ -251,6 +327,24 @@ export const translations = {
     
     // About
     packageManager: "Gestionnaire de Paquets",
+    
+    // Activity modes
+    activityMode: "Mode d'Activité",
+    hiking: "Randonnée",
+    snowshoes: "Raquettes",
+    skiTouring: "Ski de Randonnée",
+    
+    // Data management
+    cleanAllData: "Effacer Toutes les Données",
+    cleanAllDataConfirm: "Êtes-vous sûr ?",
+    cleanAllDataMessage: "Cela supprimera définitivement toutes les routes sauvegardées et les paramètres personnels. Cette action ne peut pas être annulée.",
+    confirm: "Confirmer",
+    cancel: "Annuler",
+    
+    // Donation
+    donate: "Faire un don",
+    donateDesc: "Soutenir le développement de ce projet",
+    donateMessage: "Si vous trouvez cet outil utile, envisagez de soutenir son développement. Votre contribution aide à maintenir le projet en vie et permet de nouvelles fonctionnalités."
   },
   
   es: {
@@ -259,12 +353,36 @@ export const translations = {
     appDescription: "Planifica tus rutas de montañismo con precisión",
     
     // Buttons
-    routeManager: "Gestor de Rutas",
-    generalSettings: "Configuración General",
+    routeManager: "Rutas",
+    generalSettings: "Configuración",
     help: "Ayuda",
-    routeSettings: "Configuración de Ruta",
+    routeSettings: "Ajustes",
+    routeSettingsDesc: "Configurar ajustes para \"{routeName}\" (anula los valores por defecto)",
+    routeSpecificSettings: "Configuración específica de la ruta",
+    useDefaults: "Usar Valores por Defecto",
+    ascentSpeedLabel: "Velocidad de Ascenso (m/h)",
+    descentSpeedLabel: "Velocidad de Descenso (m/h)",
+    flatSpeedLabel: "Velocidad en Terreno Plano (m/h)",
+    startingTimeLabel: "Hora de Inicio",
+    safetyTimeLabel: "Tiempo de Seguridad (%)",
+    distanceCalculation: "Cálculo de Distancia",
+    trackBased: "Basado en pista (recomendado)",
+    waypointToWaypoint: "Punto a punto",
+    trackBasedDesc: "Utiliza la ruta real de la pista para distancias precisas",
+    waypointToWaypointDesc: "Utiliza la distancia en línea recta entre puntos",
+    routeStatistics: "Estadísticas de Ruta",
+    startingTime: "Hora de Inicio",
+    endingTime: "Hora de Llegada",
+    duration: "Duración",
+    speedSettings: "Configuración de Velocidad",
+    utmZones: "Zonas UTM",
+    distance: "Distancia",
+    ascent: "Ascenso",
+    descent: "Descenso",
+    maxElevation: "Altitud Máxima",
     exportPDF: "Exportar PDF",
     addRoute: "Nueva Ruta",
+    addRouteTitle: "Agregar Ruta",
     close: "Cerrar",
     
     // Route Details
@@ -272,8 +390,13 @@ export const translations = {
     newRoute: "Nueva Ruta",
     waypoints: "puntos de paso",
     uploadGPX: "Sube un archivo GPX para crear una nueva ruta",
+    noRouteSelected: "Ninguna Ruta Seleccionada",
+    noRouteSelectedDesc: "Selecciona una ruta del panel de Rutas o sube un nuevo archivo GPX",
+    viewRoutes: "Ver Rutas",
     
     // Table Headers
+    waypoint: "Punto de Paso",
+    distance: "Distancia",
     location: "Ubicación",
     segment: "Segmento",
     route: "Ruta",
@@ -376,6 +499,24 @@ export const translations = {
     
     // About
     packageManager: "Gestor de Paquetes",
+    
+    // Activity modes
+    activityMode: "Modo de Actividad",
+    hiking: "Senderismo",
+    snowshoes: "Raquetas de Nieve",
+    skiTouring: "Esquí de Travesía",
+    
+    // Data management
+    cleanAllData: "Limpiar Todos los Datos",
+    cleanAllDataConfirm: "¿Estás seguro?",
+    cleanAllDataMessage: "Esto eliminará permanentemente todas las rutas guardadas y configuraciones personales. Esta acción no se puede deshacer.",
+    confirm: "Confirmar",
+    cancel: "Cancelar",
+    
+    // Donation
+    donate: "Donar",
+    donateDesc: "Apoyar el desarrollo de este proyecto",
+    donateMessage: "Si encuentras útil esta herramienta, considera apoyar su desarrollo. Tu contribución ayuda a mantener el proyecto vivo y permite nuevas características."
   },
   
   ca: {
@@ -384,12 +525,36 @@ export const translations = {
     appDescription: "Planifica les teves rutes d'alpinisme amb precisió",
     
     // Buttons
-    routeManager: "Gestor de Rutes",
-    generalSettings: "Configuració General",
+    routeManager: "Rutes",
+    generalSettings: "Configuració",
     help: "Ajuda",
-    routeSettings: "Configuració de Ruta",
+    routeSettings: "Ajustos",
+    routeSettingsDesc: "Configurar ajustos per a \"{routeName}\" (anula els valors per defecte)",
+    routeSpecificSettings: "Configuració específica de la ruta",
+    useDefaults: "Utilitzar Valors per Defecte",
+    ascentSpeedLabel: "Velocitat d'Ascens (m/h)",
+    descentSpeedLabel: "Velocitat de Descens (m/h)",
+    flatSpeedLabel: "Velocitat en Terreny Plà (m/h)",
+    startingTimeLabel: "Hora d'Inici",
+    safetyTimeLabel: "Temps de Seguretat (%)",
+    distanceCalculation: "Càlcul de Distància",
+    trackBased: "Basat en pista (recomanat)",
+    waypointToWaypoint: "Punt a punt",
+    trackBasedDesc: "Utilitza el camí real de la pista per distàncies precises",
+    waypointToWaypointDesc: "Utilitza la distància en línia recta entre punts",
+    routeStatistics: "Estadístiques de Ruta",
+    startingTime: "Hora d'Inici",
+    endingTime: "Hora d'Arribada",
+    duration: "Durada",
+    speedSettings: "Configuració de Velocitat",
+    utmZones: "Zone UTM",
+    distance: "Distància",
+    ascent: "Ascens",
+    descent: "Descens",
+    maxElevation: "Altitud Màxima",
     exportPDF: "Exportar PDF",
     addRoute: "Nova Ruta",
+    addRouteTitle: "Afegir Ruta",
     close: "Tancar",
     
     // Route Details
@@ -397,8 +562,13 @@ export const translations = {
     newRoute: "Nova Ruta",
     waypoints: "punts de pas",
     uploadGPX: "Puja un fitxer GPX per crear una nova ruta",
+    noRouteSelected: "Cap Ruta Seleccionada",
+    noRouteSelectedDesc: "Selecciona una ruta del panell de Rutes o puja un nou fitxer GPX",
+    viewRoutes: "Veure Rutes",
     
     // Table Headers
+    waypoint: "Punt de Pas",
+    distance: "Distància",
     location: "Ubicació",
     segment: "Segment",
     route: "Ruta",
@@ -501,6 +671,24 @@ export const translations = {
     
     // About
     packageManager: "Gestor de Paquets",
+    
+    // Activity modes
+    activityMode: "Mode d'Activitat",
+    hiking: "Senderisme",
+    snowshoes: "Raquetes de Neu",
+    skiTouring: "Esquí de Travessa",
+    
+    // Data management
+    cleanAllData: "Netejar Totes les Dades",
+    cleanAllDataConfirm: "Estàs segur?",
+    cleanAllDataMessage: "Això eliminarà permanentment totes les rutes desades i configuracions personals. Aquesta acció no es pot desfer.",
+    confirm: "Confirmar",
+    cancel: "Cancel·lar",
+    
+    // Donation
+    donate: "Donar",
+    donateDesc: "Suportar el desenvolupament d'aquest projecte",
+    donateMessage: "Si trobes útil aquesta eina, considera suportar-ne el desenvolupament. La teva contribució ajuda a mantenir el projecte viu i permet noves funcionalitats."
   }
 };
 

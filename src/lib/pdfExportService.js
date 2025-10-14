@@ -54,7 +54,8 @@ export function exportRouteToPDF(route, settings) {
     doc.text(`Distance: ${lastWaypoint.totalDistance.toFixed(2)} km`, 150, 15);
     doc.text(`Ascent: ${lastWaypoint.totalAscent.toFixed(0)} m`, 150, 20);
     doc.text(`Descent: ${lastWaypoint.totalDescent.toFixed(0)} m`, 150, 25);
-    doc.text(`Duration: ${formatTimeHoursMinutes(totalWithSafety)}`, 150, 30);
+    doc.text(`Max Elevation: ${route.metadata?.maxElevation?.toFixed(0) || '0'} m`, 150, 30);
+    doc.text(`Duration: ${formatTimeHoursMinutes(totalWithSafety)}`, 150, 35);
   }
   
   // Add metadata

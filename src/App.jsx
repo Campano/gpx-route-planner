@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table.jsx'
-import { Upload, Mountain, Settings, Settings2, FileText, Trash2, Download, ChevronLeft, ChevronRight, Eye, EyeOff, FolderOpen, Edit3, AlertTriangle, HelpCircle, Info, X, Globe, Plus } from 'lucide-react'
+import { Upload, Mountain, Settings, Settings2, FileText, Trash2, Download, EyeOff, FolderOpen, Edit3, AlertTriangle, HelpCircle, X, Globe, Plus, Footprints, Snowflake, Zap, Heart } from 'lucide-react'
 import { parseGPXFile, recalculateWaypoints, formatTimeHoursMinutes, formatTimeHoursMinutesForMin, formatTotalTimeWithPercentage } from './lib/calculationService.js'
 import { exportRouteToPDF } from './lib/pdfExportService.js'
 import GitHubCorner from './components/GitHubCorner.jsx'
@@ -25,27 +25,65 @@ function App() {
       }
     }
     return {
-      ascentSpeed: 300, // m/h (meters per hour)
-      descentSpeed: 400, // m/h
-      flatSpeed: 5000, // m/h (5 km/h = 5000 m/h)
+      activityMode: 'hiking', // 'hiking', 'snowshoes', 'skiTouring'
+      activityModes: {
+        hiking: {
+          ascentSpeed: 300, // m/h (meters per hour)
+          descentSpeed: 400, // m/h
+          flatSpeed: 5000, // m/h (5 km/h = 5000 m/h)
+        },
+        snowshoes: {
+          ascentSpeed: 200, // m/h
+          descentSpeed: 300, // m/h
+          flatSpeed: 3000, // m/h (3 km/h = 3000 m/h)
+        },
+        skiTouring: {
+          ascentSpeed: 400, // m/h
+          descentSpeed: 600, // m/h
+          flatSpeed: 4000, // m/h (4 km/h = 4000 m/h)
+        }
+      },
       startTime: '08:00',
       distanceCalculationMethod: 'track', // 'track' or 'waypoint-to-waypoint'
-      safetyTimePercentage: 10 // Safety time as percentage (10% = 10)
+      safetyTimePercentage: 20 // Safety time as percentage (20% = 20)
     }
   })
   const [activePanel, setActivePanel] = useState('route-manager') // 'route-manager', 'general-settings', 'route-settings', 'help', null
   const [editingWaypoint, setEditingWaypoint] = useState(null)
+  const [editingRouteName, setEditingRouteName] = useState(false)
+  const [editingPenalty, setEditingPenalty] = useState(null)
+  const [editingRest, setEditingRest] = useState(null)
   const [language, setLanguage] = useState(() => {
     const saved = localStorage.getItem('mountain-route-planner-language')
     return saved || 'en'
   })
   const [isDragOver, setIsDragOver] = useState(false)
   const [showNewRoute, setShowNewRoute] = useState(false)
+  const [showCleanDataDialog, setShowCleanDataDialog] = useState(false)
   const dragCounterRef = useRef(0)
 
   // Translation helper
   const t = (key) => {
     return translations[language]?.[key] || translations.en[key] || key
+  }
+
+  // Get current speeds based on activity mode
+  const getCurrentSpeeds = () => {
+    return settings.activityModes[settings.activityMode]
+  }
+
+  // Get icon for activity mode
+  const getActivityIcon = (mode) => {
+    switch (mode) {
+      case 'hiking':
+        return <Footprints className="w-4 h-4" />
+      case 'snowshoes':
+        return <Snowflake className="w-4 h-4" />
+      case 'skiTouring':
+        return <Zap className="w-4 h-4" />
+      default:
+        return <Footprints className="w-4 h-4" />
+    }
   }
 
   // Save language to localStorage when it changes
@@ -117,7 +155,19 @@ function App() {
 
   // Get effective settings for a route (route-specific or default)
   const getEffectiveSettings = (route) => {
-    return route?.settings || settings
+    // If route has its own settings, use them directly
+    if (route?.settings) {
+      return route.settings
+    }
+    
+    // For routes without specific settings (legacy routes), use the global default speeds
+    const currentSpeeds = getCurrentSpeeds()
+    return {
+      ...settings,
+      ascentSpeed: currentSpeeds.ascentSpeed,
+      descentSpeed: currentSpeeds.descentSpeed,
+      flatSpeed: currentSpeeds.flatSpeed,
+    }
   }
 
   // Handle GPX file upload
@@ -133,7 +183,15 @@ function App() {
         name: parsed.metadata.name || file.name.replace('.gpx', ''),
         gpxData: parsed.gpxData,
         waypoints: parsed.waypoints,
-        settings: null, // null means use default settings
+        settings: {
+          activityMode: settings.activityMode,
+          ascentSpeed: getCurrentSpeeds().ascentSpeed,
+          descentSpeed: getCurrentSpeeds().descentSpeed,
+          flatSpeed: getCurrentSpeeds().flatSpeed,
+          startTime: settings.startTime,
+          distanceCalculationMethod: settings.distanceCalculationMethod,
+          safetyTimePercentage: settings.safetyTimePercentage
+        },
         createdAt: Date.now()
       }
       
@@ -227,33 +285,47 @@ function App() {
 
   // Update default settings
   const updateDefaultSettings = (field, value) => {
-    const newSettings = { ...settings, [field]: value }
+    let newSettings
+    if (['ascentSpeed', 'descentSpeed', 'flatSpeed'].includes(field)) {
+      // Update speed for current activity mode
+      newSettings = {
+        ...settings,
+        activityModes: {
+          ...settings.activityModes,
+          [settings.activityMode]: {
+            ...settings.activityModes[settings.activityMode],
+            [field]: value
+          }
+        }
+      }
+    } else {
+      newSettings = { ...settings, [field]: value }
+    }
     setSettings(newSettings)
     
-    // Recalculate all routes that use default settings
-    const updatedRoutes = routes.map(route => {
-      if (!route.settings) { // Route uses default settings
-        const recalculated = recalculateWaypoints(route.waypoints, newSettings)
-        return { ...route, waypoints: recalculated }
-      }
-      return route
-    })
-    setRoutes(updatedRoutes)
-    
-    // Update selected route if it uses default settings
-    if (selectedRoute && !selectedRoute.settings) {
-      const recalculated = recalculateWaypoints(selectedRoute.waypoints, newSettings)
-      setSelectedRoute({ ...selectedRoute, waypoints: recalculated })
-    }
+    // General settings changes should not affect existing routes
+    // Only new routes will use the updated general settings
+    // Existing routes maintain their own independent settings
   }
 
   // Update route-specific settings
   const updateRouteSettings = (field, value) => {
     if (!selectedRoute) return
     
-    const newRouteSettings = { 
+    let newRouteSettings = { 
       ...getEffectiveSettings(selectedRoute), 
       [field]: value 
+    }
+    
+    // If activity mode is changed, update speeds to match the new mode
+    if (field === 'activityMode') {
+      const newModeSpeeds = settings.activityModes[value]
+      newRouteSettings = {
+        ...newRouteSettings,
+        ascentSpeed: newModeSpeeds.ascentSpeed,
+        descentSpeed: newModeSpeeds.descentSpeed,
+        flatSpeed: newModeSpeeds.flatSpeed,
+      }
     }
     
     const updatedRoute = { ...selectedRoute, settings: newRouteSettings }
@@ -285,8 +357,49 @@ function App() {
     exportRouteToPDF(selectedRoute, settings)
   }
 
+  // Clean all data
+  const handleCleanAllData = () => {
+    // Clear all routes
+    setRoutes([])
+    setSelectedRoute(null)
+    
+    // Reset settings to defaults
+    const defaultSettings = {
+      activityMode: 'hiking',
+      activityModes: {
+        hiking: {
+          ascentSpeed: 300,
+          descentSpeed: 400,
+          flatSpeed: 5000,
+        },
+        snowshoes: {
+          ascentSpeed: 200,
+          descentSpeed: 300,
+          flatSpeed: 3000,
+        },
+        skiTouring: {
+          ascentSpeed: 400,
+          descentSpeed: 600,
+          flatSpeed: 4000,
+        }
+      },
+      startTime: '08:00',
+      distanceCalculationMethod: 'track',
+      safetyTimePercentage: 20
+    }
+    setSettings(defaultSettings)
+    
+    // Clear localStorage
+    localStorage.removeItem('mountainRoutes')
+    localStorage.removeItem('mountainSettings')
+    localStorage.removeItem('mountain-route-planner-language')
+    
+    // Close dialog
+    setShowCleanDataDialog(false)
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 p-6 relative">
+    <div className="min-h-screen p-6 relative">
       <GitHubCorner url="https://github.com/Campano/gpx-route-planner/issues" />
       
       {/* Warning Banner */}
@@ -307,9 +420,9 @@ function App() {
         </div>
       </div>
       
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="max-w-7xl mx-auto space-y-6 panel-transition">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between rounded-xl p-6 shadow-mountain-lg bg-card">
           <div className="flex items-center gap-3">
             <Mountain className="w-10 h-10 text-primary" />
             <div>
@@ -321,6 +434,7 @@ function App() {
             <Button
               variant="outline"
               size="sm"
+              className="btn-primary"
               onClick={() => handlePanelToggle('route-manager')}
               title={showRouteManager ? "Hide route manager" : "Show route manager"}
             >
@@ -339,8 +453,9 @@ function App() {
           <Button
             variant="outline"
             size="sm"
+            className="btn-primary"
               onClick={() => handlePanelToggle('general-settings')}
-              title={showSettings ? "Hide general settings" : "Show general settings"}
+              title={showSettings ? "Hide settings" : "Show settings"}
             >
               {showSettings ? (
                 <>
@@ -357,51 +472,123 @@ function App() {
           <Button
             variant="outline"
             size="sm"
+            className="btn-primary"
             onClick={() => handlePanelToggle('help')}
             title={showHelp ? "Hide help" : "Show help"}
           >
             {showHelp ? (
-              <EyeOff className="w-4 h-4" />
+              <>
+                <EyeOff className="w-4 h-4 mr-2" />
+                {t('help')}
+              </>
             ) : (
-              <HelpCircle className="w-4 h-4" />
+              <>
+                <HelpCircle className="w-4 h-4 mr-2" />
+                {t('help')}
+              </>
             )}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="btn-donate"
+            onClick={() => window.open('https://github.com/sponsors/Campano', '_blank')}
+            title="Donate to keep the project alive"
+          >
+            <Heart className="w-4 h-4 mr-2 heartbeat-icon" />
+            {t('donate')}
           </Button>
           </div>
         </div>
 
 
             {/* Route Details and Panels */}
-            <div className="flex flex-col lg:flex-row gap-6">
+            <div className="flex flex-col lg:flex-row gap-6 panel-slide-in">
           {/* Waypoint Table - Main content */}
           <div className={`flex-1 ${activePanel ? 'lg:w-2/3' : 'w-full'}`}>
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>{selectedRoute ? t('routeDetails') : t('newRoute')}</CardTitle>
-                  <CardDescription>
-                    {selectedRoute ? (
-                      <>
-                        {selectedRoute.waypoints.length} {t('waypoints')}
-                        {selectedRoute.waypoints.length > 0 && selectedRoute.waypoints[0].utm && (
-                          <span className="ml-2 text-muted-foreground">
-                            • UTM Zone: {selectedRoute.waypoints[0].utm.split(' ')[1]}
-                          </span>
+          <Card className="shadow-mountain-lg">
+            {selectedRoute && (
+              <>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        {editingRouteName ? (
+                          <Input
+                            value={selectedRoute.name || ''}
+                            onChange={(e) => {
+                              const updatedRoute = { ...selectedRoute, name: e.target.value };
+                              setSelectedRoute(updatedRoute);
+                              setRoutes(routes.map(r => r.id === selectedRoute.id ? updatedRoute : r));
+                            }}
+                            onBlur={() => setEditingRouteName(false)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                setEditingRouteName(false);
+                              }
+                              if (e.key === 'Escape') {
+                                setEditingRouteName(false);
+                              }
+                            }}
+                            className="text-lg font-semibold border-none p-0 h-auto bg-transparent focus:ring-0"
+                            placeholder="Route name"
+                            autoFocus
+                          />
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg font-semibold">{selectedRoute.name || 'Unnamed Route'}</span>
+                            <button
+                              onClick={() => setEditingRouteName(true)}
+                              className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                              title="Edit route name"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                            </button>
+                          </div>
                         )}
-                      </>
-                    ) : (
-                      t('uploadGPX')
-                    )}
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  {selectedRoute && (
-                    <>
+                      </CardTitle>
+                    <CardDescription>
+                      <div className="text-xs space-y-1">
+                        <div className="font-medium">
+                          {selectedRoute.waypoints.length} waypoints • {selectedRoute.metadata?.totalDistance?.toFixed(2) || '0.00'} km • {selectedRoute.metadata?.totalAscent?.toFixed(0) || '0'}m ↑ • {selectedRoute.metadata?.totalDescent?.toFixed(0) || '0'}m ↓ • {selectedRoute.metadata?.maxElevation?.toFixed(0) || '0'}m max
+                        </div>
+                        <div 
+                          className="text-muted-foreground"
+                          dangerouslySetInnerHTML={{
+                            __html: (() => {
+                              const lastWaypoint = selectedRoute.waypoints[selectedRoute.waypoints.length - 1];
+                              const totalWithSafety = lastWaypoint.totalTime * (1 + (getEffectiveSettings(selectedRoute).safetyTimePercentage || 0) / 100);
+                              const startTime = getEffectiveSettings(selectedRoute).startTime;
+                              const [startHours, startMinutes] = startTime.split(':').map(Number);
+                              const totalMinutes = startHours * 60 + startMinutes + Math.round(totalWithSafety);
+                              const endingHours = Math.floor(totalMinutes / 60);
+                              const endingMinutes = Math.round(totalMinutes % 60);
+                              const endingTime = `${endingHours.toString().padStart(2, '0')}:${endingMinutes.toString().padStart(2, '0')}`;
+                              const duration = formatTimeHoursMinutes(totalWithSafety);
+                              const utmZones = [...new Set(selectedRoute.waypoints.map(wp => {
+                                if (!wp.utm) return null;
+                                const match = wp.utm.match(/Zone (\d+[A-Z])/);
+                                return match ? match[1] : null;
+                              }).filter(Boolean))];
+                              const utmZone = utmZones.length > 0 ? utmZones.join(', ') : 'N/A';
+                              const activityMode = getEffectiveSettings(selectedRoute).activityMode || settings.activityMode;
+                              const ascentSpeed = getEffectiveSettings(selectedRoute).ascentSpeed;
+                              const descentSpeed = getEffectiveSettings(selectedRoute).descentSpeed;
+                              const flatSpeed = getEffectiveSettings(selectedRoute).flatSpeed;
+                              return `${duration} • ${startTime}-${endingTime} • ${utmZone} • ${t(activityMode)} (<span class="text-xs">↑${ascentSpeed} ↓${descentSpeed} →${flatSpeed} m/h</span>)`;
+                            })()
+                          }}
+                        />
+                      </div>
+                    </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
                         size="sm"
+                        className="btn-primary"
                         onClick={() => handlePanelToggle('route-settings')}
-                        title={showRouteSettings ? "Hide route settings" : "Configure route-specific settings"}
+                        title={showRouteSettings ? "Hide configuration" : "Configure route-specific settings"}
                       >
                         {showRouteSettings ? (
                           <>
@@ -415,30 +602,32 @@ function App() {
                           </>
                         )}
                       </Button>
-                      <Button onClick={handleExportPDF} variant="default">
+                      <Button onClick={handleExportPDF} variant="outline" className="btn-primary">
                         <Download className="w-4 h-4 mr-2" />
                         {t('exportPDF')}
                       </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
               {selectedRoute ? (
-                <div className="overflow-x-auto">
+                <div className="space-y-6">
+                  {/* Waypoint Table */}
+                  <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                           {/* Group Header Row */}
                           <TableRow>
-                            <TableHead rowSpan={2} className="w-40 text-center bg-muted/50">{t('location')}</TableHead>
-                            <TableHead rowSpan={2} className="w-24 text-center bg-muted/50">{t('segment')}</TableHead>
-                            <TableHead rowSpan={2} className="w-24 text-center bg-muted/50">{t('route')}</TableHead>
+                            <TableHead rowSpan={2} className="w-40 text-center bg-muted/50">{t('waypoint')}</TableHead>
+                            <TableHead colSpan={3} className="text-center bg-muted/50">{t('distance')}</TableHead>
                             <TableHead colSpan={6} className="text-center bg-muted/50">{t('timing')}</TableHead>
                             <TableHead rowSpan={2} className="w-48 min-w-48 max-w-48 text-center bg-muted/50">{t('notes')}</TableHead>
                           </TableRow>
                           {/* Column Header Row */}
                           <TableRow>
+                            <TableHead className="w-32 text-center bg-muted/30">Position</TableHead>
+                            <TableHead className="w-24 text-center bg-muted/30">{t('segment')}</TableHead>
+                            <TableHead className="w-24 text-center bg-muted/30">{t('route')}</TableHead>
                             <TableHead className="w-24 text-center bg-muted/30">{t('segmentTime')}</TableHead>
                             <TableHead className="w-24 text-center bg-muted/30">{t('penalty')}</TableHead>
                             <TableHead className="w-24 text-center bg-muted/30">{t('rest')}</TableHead>
@@ -450,7 +639,7 @@ function App() {
                     <TableBody>
                       {selectedRoute.waypoints.map((waypoint, index) => (
                         <TableRow key={waypoint.id} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
-                              {/* Location Column */}
+                              {/* Waypoint Column */}
                               <TableCell className="w-40">
                                 <div className="space-y-1">
                                   <div className={`h-8 px-2 py-1 text-xs font-medium rounded border flex items-center ${
@@ -459,9 +648,6 @@ function App() {
                                     'bg-muted/30'
                                   }`}>
                                     {waypoint.name}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground text-center">
-                                    {waypoint.utm ? waypoint.utm.replace(/^Zone \d+ /, '') : 'N/A'}
                                   </div>
                                   <div className="flex items-center gap-2 justify-center">
                                     <input
@@ -472,19 +658,31 @@ function App() {
                                       disabled={waypoint.isStartPoint || waypoint.isEndPoint}
                                     />
                                     <span className="text-xs">{t('decisionPoint')}</span>
-                                    <span className="text-sm font-medium ml-1">
-                                      {waypoint.elevation.toFixed(0)}m
-                                    </span>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              {/* Position Column */}
+                              <TableCell className="w-32">
+                                <div className="space-y-1 text-xs text-center">
+                                  <div className="text-muted-foreground">
+                                    {waypoint.utm ? waypoint.utm.replace(/^Zone \d+ /, '') : 'N/A'}
+                                  </div>
+                                  <div className="font-medium">
+                                    {waypoint.elevation.toFixed(0)}m
                                   </div>
                                 </div>
                               </TableCell>
                           {/* Segment Columns */}
                           <TableCell className="text-xs text-center">
-                            <div className="space-y-1">
-                              <div className="text-green-600 font-medium">↑{waypoint.segmentAscent.toFixed(0)}m</div>
-                              <div className="text-red-600 font-medium">↓{waypoint.segmentDescent.toFixed(0)}m</div>
-                              <div className="text-blue-600 font-medium">{waypoint.segmentDistance.toFixed(2)}km</div>
-                            </div>
+                            {index === 0 ? (
+                              <span className="text-muted-foreground">—</span>
+                            ) : (
+                              <div className="space-y-1">
+                                <div className="text-green-600 font-medium">↑{waypoint.segmentAscent.toFixed(0)}m</div>
+                                <div className="text-red-600 font-medium">↓{waypoint.segmentDescent.toFixed(0)}m</div>
+                                <div className="text-blue-600 font-medium">{waypoint.segmentDistance.toFixed(2)}km</div>
+                              </div>
+                            )}
                           </TableCell>
                           {/* Route Columns */}
                           <TableCell className="text-xs text-center">
@@ -494,28 +692,78 @@ function App() {
                               <div className="text-blue-600 font-medium">{waypoint.totalDistance.toFixed(2)}km</div>
                             </div>
                           </TableCell>
-                          {/* Timing Columns (segment time first, then adaptations) */}
-                          <TableCell className="text-xs text-center">{formatTimeHoursMinutesForMin(waypoint.segmentTime)}</TableCell>
-                          <TableCell>
-                <Input
-                  type="number"
-                              value={waypoint.terrainDifficultyPenalty}
-                              onChange={(e) => updateWaypoint(waypoint.id, 'terrainDifficultyPenalty', parseFloat(e.target.value) || 0)}
-                  step="0.1"
-                              className="h-8 text-xs w-20 text-center"
-                />
-                          </TableCell>
-                          <TableCell>
-                <Input
-                  type="number"
-                              value={waypoint.stopDuration}
-                              onChange={(e) => updateWaypoint(waypoint.id, 'stopDuration', parseFloat(e.target.value) || 0)}
-                              className="h-8 text-xs w-20 text-center"
-                            />
-                          </TableCell>
+                          {/* Timing Columns */}
                           <TableCell className="text-xs text-center">
-                            {formatTimeHoursMinutesForMin(waypoint.totalTime)}
+                            {index === 0 ? (
+                              <span className="text-muted-foreground">—</span>
+                            ) : (
+                              formatTimeHoursMinutesForMin(waypoint.segmentTime)
+                            )}
                           </TableCell>
+                          <TableCell 
+                            className="penalty-cell group"
+                            onClick={() => editingPenalty !== waypoint.id && setEditingPenalty(waypoint.id)}
+                          >
+                            {index === 0 ? (
+                              <span className="text-muted-foreground">—</span>
+                            ) : editingPenalty === waypoint.id ? (
+                              <Input
+                                type="number"
+                                value={waypoint.terrainDifficultyPenalty}
+                                onChange={(e) => updateWaypoint(waypoint.id, 'terrainDifficultyPenalty', parseFloat(e.target.value) || 0)}
+                                onBlur={() => setEditingPenalty(null)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    setEditingPenalty(null);
+                                  }
+                                  if (e.key === 'Escape') {
+                                    setEditingPenalty(null);
+                                  }
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                step="0.1"
+                                className="h-8 text-xs w-20 text-center"
+                                autoFocus
+                              />
+                            ) : (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-xs penalty-text">{(waypoint.terrainDifficultyPenalty * 100).toFixed(0)}%</span>
+                                <Edit3 className="w-3 h-3 text-muted-foreground penalty-icon flex-shrink-0" />
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell 
+                            className="rest-cell group"
+                            onClick={() => editingRest !== waypoint.id && setEditingRest(waypoint.id)}
+                          >
+                            {index === 0 ? (
+                              <span className="text-muted-foreground">—</span>
+                            ) : editingRest === waypoint.id ? (
+                              <Input
+                                type="number"
+                                value={waypoint.stopDuration}
+                                onChange={(e) => updateWaypoint(waypoint.id, 'stopDuration', parseFloat(e.target.value) || 0)}
+                                onBlur={() => setEditingRest(null)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    setEditingRest(null);
+                                  }
+                                  if (e.key === 'Escape') {
+                                    setEditingRest(null);
+                                  }
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="h-8 text-xs w-20 text-center"
+                                autoFocus
+                              />
+                            ) : (
+                              <div className="flex items-center justify-center gap-1">
+                                <span className="text-xs rest-text">{waypoint.stopDuration.toFixed(0)}min</span>
+                                <Edit3 className="w-3 h-3 text-muted-foreground rest-icon flex-shrink-0" />
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-xs text-center">{formatTimeHoursMinutesForMin(waypoint.totalTime)}</TableCell>
                           <TableCell className="text-xs text-center">
                             {(() => {
                               const lastWaypoint = selectedRoute.waypoints[selectedRoute.waypoints.length - 1];
@@ -525,7 +773,10 @@ function App() {
                           </TableCell>
                           <TableCell className="text-xs text-center">{waypoint.hour}</TableCell>
                           {/* Notes Column */}
-                          <TableCell className="w-48 min-w-48 max-w-48">
+                          <TableCell 
+                            className="w-48 min-w-48 max-w-48 note-cell group"
+                            onClick={() => editingWaypoint !== waypoint.id && setEditingWaypoint(waypoint.id)}
+                          >
                             {editingWaypoint === waypoint.id ? (
                               <Textarea
                                 value={waypoint.comments}
@@ -534,22 +785,17 @@ function App() {
                                 placeholder="Notes..."
                                 rows={3}
                                 onBlur={() => setEditingWaypoint(null)}
+                                onClick={(e) => e.stopPropagation()}
                                 autoFocus
                               />
                             ) : (
                               <div className="flex items-start gap-2 w-full">
-                                <div className="flex-1 text-xs break-words whitespace-pre-wrap break-all">
+                                <div className="flex-1 text-xs break-words whitespace-pre-wrap break-all note-text">
                                   {waypoint.comments || (
-                                    <span className="text-muted-foreground italic">No notes</span>
+                                    <span className="text-muted-foreground italic note-placeholder">No notes</span>
                                   )}
                                 </div>
-                                <button
-                                  onClick={() => setEditingWaypoint(waypoint.id)}
-                                  className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                                  title="Edit notes"
-                                >
-                                  <Edit3 className="w-3 h-3" />
-                                </button>
+                                <Edit3 className="w-3 h-3 text-muted-foreground note-icon flex-shrink-0" />
                               </div>
                             )}
                           </TableCell>
@@ -559,12 +805,14 @@ function App() {
                           {/* Safety Time Row */}
                           {selectedRoute.waypoints.length > 0 && (
                             <TableRow className="bg-muted/20 font-medium">
-                              {/* Location Column */}
+                              {/* Waypoint Column */}
                               <TableCell className="w-40">
                                 <div className="text-xs font-medium text-center">
-                                  {t('safetyTime')}
+                                  {t('safetyTime')} ({getEffectiveSettings(selectedRoute).safetyTimePercentage}%)
                                 </div>
                               </TableCell>
+                              {/* Position Column - Empty */}
+                              <TableCell className="w-32"></TableCell>
                               {/* Segment Column - Empty */}
                               <TableCell></TableCell>
                               {/* Route Column - Empty */}
@@ -587,7 +835,10 @@ function App() {
                                 })()}
                               </TableCell>
                               <TableCell className="text-xs text-center font-medium">
-                                100%
+                                {(() => {
+                                  const safetyPercentage = getEffectiveSettings(selectedRoute).safetyTimePercentage;
+                                  return `${100 + safetyPercentage}%`;
+                                })()}
                               </TableCell>
                               <TableCell className="text-xs text-center font-medium">
                                 {(() => {
@@ -603,52 +854,63 @@ function App() {
                         </TableBody>
                       </Table>
                 </div>
+                </div>
               ) : (
                 <div className="py-12">
-                  <div
-                    className="border-2 border-dashed border-border rounded-lg p-12 text-center cursor-pointer transition-all duration-200 hover:border-primary hover:bg-accent/50"
-                    onDragEnter={handleDragEnter}
-                    onDragLeave={handleDragLeave}
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop}
-                  >
-                    <Upload className={`w-16 h-16 mx-auto mb-4 transition-colors ${
-                      isDragOver ? 'text-primary' : 'text-muted-foreground'
-                    }`} />
-                    <h3 className={`text-lg font-semibold mb-2 transition-colors ${
-                      isDragOver ? 'text-primary' : ''
-                    }`}>
-                      {isDragOver ? t('dropGPXFileHere') : t('uploadGPXFile')}
-                    </h3>
+                  <div className="text-center">
+                    <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
                     <p className="text-sm text-muted-foreground mb-4">
-                      {t('dragDropZone')}
+                      {t('noRouteSelectedDesc')}
                     </p>
-                    <label htmlFor="gpx-upload-main">
-                      <Button variant="outline" asChild>
-                        <div className="cursor-pointer">
-                          <Upload className="w-4 h-4 mr-2" />
-                          {t('selectFile')}
-              </div>
+                    {!showRouteManager && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="btn-primary"
+                        onClick={() => handlePanelToggle('route-manager')}
+                        title="Show route manager"
+                      >
+                        <FolderOpen className="w-4 h-4 mr-2" />
+                        {t('routeManager')}
                       </Button>
-                <Input
-                        id="gpx-upload-main"
-                        type="file"
-                        accept=".gpx"
-                        onChange={handleFileInputChange}
-                        className="hidden"
-                      />
-                    </label>
+                    )}
                   </div>
-              </div>
+                </div>
               )}
-            </CardContent>
+                </CardContent>
+              </>
+            )}
+            {!selectedRoute && (
+              <CardContent>
+                <div className="py-12">
+                  <div className="text-center">
+                    <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {t('noRouteSelectedDesc')}
+                    </p>
+                    {!showRouteManager && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="btn-primary"
+                        onClick={() => handlePanelToggle('route-manager')}
+                        title="Show route manager"
+                      >
+                        <FolderOpen className="w-4 h-4 mr-2" />
+                        {t('routeManager')}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            )}
           </Card>
           </div>
 
               {/* Route Manager Panel */}
               {showRouteManager && (
                 <div className="lg:w-1/3">
-                  <Card>
+                  <Card className="shadow-mountain-lg">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
@@ -656,33 +918,17 @@ function App() {
                   <CardDescription>{t('manageRoutes')}</CardDescription>
                 </div>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
+                  className="btn-close"
                   onClick={() => handlePanelToggle('route-manager')}
                   title="Close panel"
-                  className="h-6 w-6 p-0 -mt-1 -mr-1"
                 >
                   <X className="w-3 h-3" />
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-                {/* New Route Button - Only show when a route is selected */}
-                {selectedRoute && (
-                  <div className="mb-4">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedRoute(null)}
-                      title="Create new route"
-                      className="w-full"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      {t('addRoute')}
-                    </Button>
-                  </div>
-                )}
-
               {/* Route List */}
               {routes.length > 0 && (
                   <div className="space-y-2">
@@ -693,7 +939,7 @@ function App() {
                       className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
                         selectedRoute?.id === route.id
                           ? 'bg-primary/10 border-primary'
-                          : 'bg-card border-border hover:bg-accent'
+                          : 'bg-card border-border hover:bg-gray-50'
                       }`}
                       onClick={() => setSelectedRoute(route)}
                     >
@@ -704,6 +950,7 @@ function App() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="btn-primary"
                         onClick={(e) => {
                           e.stopPropagation()
                           deleteRoute(route.id)
@@ -722,6 +969,45 @@ function App() {
                     <p className="text-sm">{t('noRoutes')}</p>
                 </div>
               )}
+
+              {/* Add Route Section */}
+              <div className="mt-6">
+                <h3 className="text-sm font-semibold mb-3">{t('addRouteTitle')}</h3>
+                <div
+                  className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer transition-all duration-200 hover:border-primary hover:bg-gray-50"
+                  onDragEnter={handleDragEnter}
+                  onDragLeave={handleDragLeave}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                >
+                  <Upload className={`w-12 h-12 mx-auto mb-3 transition-colors ${
+                    isDragOver ? 'text-primary' : 'text-muted-foreground'
+                  }`} />
+                  <h4 className={`text-sm font-semibold mb-2 transition-colors ${
+                    isDragOver ? 'text-primary' : ''
+                  }`}>
+                    {isDragOver ? t('dropGPXFileHere') : t('uploadGPXFile')}
+                  </h4>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    {t('dragDropZone')}
+                  </p>
+                  <label htmlFor="gpx-upload-panel">
+                    <Button variant="outline" size="sm" className="btn-primary" asChild>
+                      <div className="cursor-pointer">
+                        <Upload className="w-3 h-3 mr-2" />
+                        {t('selectFile')}
+                      </div>
+                    </Button>
+                    <Input
+                      id="gpx-upload-panel"
+                      type="file"
+                      accept=".gpx"
+                      onChange={handleFileInputChange}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
             </CardContent>
           </Card>
                 </div>
@@ -730,21 +1016,18 @@ function App() {
               {/* General Settings Panel */}
               {showSettings && (
                 <div className="lg:w-1/3">
-                  <Card>
+                  <Card className="shadow-mountain-lg">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>{t('generalSettings')}</CardTitle>
-                  <CardDescription>
-                    {t('configureDefaults')}
-                  </CardDescription>
                 </div>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
+                  className="btn-close"
                   onClick={() => handlePanelToggle('general-settings')}
                   title="Close panel"
-                  className="h-6 w-6 p-0 -mt-1 -mr-1"
                 >
                   <X className="w-3 h-3" />
                 </Button>
@@ -770,81 +1053,119 @@ function App() {
                   </div>
                 </div>
                 
-                <div>
-                  <h4 className="text-sm font-medium mb-4">{t('defaultSettings')}</h4>
-                  <div className="grid grid-cols-1 gap-4">
+                {/* Activity Mode and Speed Settings */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium mb-4">Speeds</h4>
+                  
+                  {/* Activity Mode Selector */}
+                  <div className="mb-4">
+                    <div className="relative">
+                      <select
+                        value={settings.activityMode}
+                        onChange={(e) => updateDefaultSettings('activityMode', e.target.value)}
+                        className="appearance-none bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent w-full"
+                        title="Select activity mode"
+                      >
+                        <option value="hiking">🥾 {t('hiking')}</option>
+                        <option value="snowshoes">❄️ {t('snowshoes')}</option>
+                        <option value="skiTouring">🎿 {t('skiTouring')}</option>
+                      </select>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Default speeds for new routes (m/h)
+                    </p>
+                  </div>
+                  
+                  {/* Speed Settings in 3 columns */}
+                  <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className="text-sm font-medium">{t('ascentSpeed')}</label>
-                            <Input
+                      <label className="text-xs text-muted-foreground">Ascent</label>
+                      <Input
                         type="number"
-                        value={settings.ascentSpeed}
+                        value={getCurrentSpeeds().ascentSpeed}
                         onChange={(e) => updateDefaultSettings('ascentSpeed', parseFloat(e.target.value))}
                         step="10"
                         className="mt-1"
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium">{t('descentSpeed')}</label>
-                            <Input
-                              type="number"
-                              value={settings.descentSpeed}
-                              onChange={(e) => updateDefaultSettings('descentSpeed', parseFloat(e.target.value))}
-                              step="10"
-                              className="mt-1"
-                            />
+                      <label className="text-xs text-muted-foreground">Descent</label>
+                      <Input
+                        type="number"
+                        value={getCurrentSpeeds().descentSpeed}
+                        onChange={(e) => updateDefaultSettings('descentSpeed', parseFloat(e.target.value))}
+                        step="10"
+                        className="mt-1"
+                      />
                     </div>
                     <div>
-                      <label className="text-sm font-medium">{t('flatSpeed')}</label>
-                            <Input
-                              type="number"
-                              value={settings.flatSpeed}
-                              onChange={(e) => updateDefaultSettings('flatSpeed', parseFloat(e.target.value))}
-                              step="100"
-                              className="mt-1"
-                            />
+                      <label className="text-xs text-muted-foreground">Flat</label>
+                      <Input
+                        type="number"
+                        value={getCurrentSpeeds().flatSpeed}
+                        onChange={(e) => updateDefaultSettings('flatSpeed', parseFloat(e.target.value))}
+                        step="100"
+                        className="mt-1"
+                      />
                     </div>
-                        <div>
-                          <label className="text-sm font-medium">{t('startTime')}</label>
-                            <Input
-                            type="time"
-                            value={settings.startTime}
-                            onChange={(e) => updateDefaultSettings('startTime', e.target.value)}
-                            className="mt-1"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium">{t('distanceCalculation')}</label>
-                          <select
-                            value={settings.distanceCalculationMethod}
-                            onChange={(e) => updateDefaultSettings('distanceCalculationMethod', e.target.value)}
-                            className="mt-1 w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
-                          >
-                            <option value="track">{t('trackBased')}</option>
-                            <option value="waypoint-to-waypoint">{t('waypointToWaypoint')}</option>
-                          </select>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {settings.distanceCalculationMethod === 'track' 
-                              ? 'Uses actual track path for accurate distances'
-                              : 'Uses straight-line distance between waypoints'
-                            }
-                          </p>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium">{t('safetyTime')}</label>
-                          <Input
-                            type="number"
-                            value={settings.safetyTimePercentage}
-                            onChange={(e) => updateDefaultSettings('safetyTimePercentage', parseFloat(e.target.value) || 0)}
-                            step="1"
-                            min="0"
-                            max="100"
-                            className="mt-1"
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Additional time buffer as percentage of total route time
-                          </p>
-                        </div>
                   </div>
+                </div>
+                
+                {/* Other Settings */}
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">{t('startTime')}</label>
+                    <Input
+                      type="time"
+                      value={settings.startTime}
+                      onChange={(e) => updateDefaultSettings('startTime', e.target.value)}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">{t('distanceCalculation')}</label>
+                    <select
+                      value={settings.distanceCalculationMethod}
+                      onChange={(e) => updateDefaultSettings('distanceCalculationMethod', e.target.value)}
+                      className="mt-1 w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+                    >
+                      <option value="track">{t('trackBased')}</option>
+                      <option value="waypoint-to-waypoint">{t('waypointToWaypoint')}</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {settings.distanceCalculationMethod === 'track' 
+                        ? 'Uses actual track path for accurate distances'
+                        : 'Uses straight-line distance between waypoints'
+                      }
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">{t('safetyTime')}</label>
+                    <Input
+                      type="number"
+                      value={settings.safetyTimePercentage}
+                      onChange={(e) => updateDefaultSettings('safetyTimePercentage', parseFloat(e.target.value) || 0)}
+                      step="1"
+                      min="0"
+                      max="100"
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Additional time buffer as percentage of total route time
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Clean All Data Button */}
+                <div className="pt-4 border-t border-border">
+                  <Button
+                    variant="outline"
+                    className="w-full btn-danger"
+                    onClick={() => setShowCleanDataDialog(true)}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {t('cleanAllData')}
+                  </Button>
                 </div>
               </CardContent>
                   </Card>
@@ -854,70 +1175,100 @@ function App() {
               {/* Route Settings Panel */}
               {showRouteSettings && selectedRoute && (
                 <div className="lg:w-1/3">
-                  <Card>
+                  <Card className="shadow-mountain-lg">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>{t('routeSettings')}</CardTitle>
                     <CardDescription>
-                      Configure settings for "{selectedRoute.name}" (overrides default)
+                      {t('routeSettingsDesc').replace('{routeName}', selectedRoute.name)}
                     </CardDescription>
                   </div>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
+                    className="btn-close"
                     onClick={() => handlePanelToggle('route-settings')}
                     title="Close panel"
-                    className="h-6 w-6 p-0 -mt-1 -mr-1"
                   >
                     <X className="w-3 h-3" />
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Route-specific settings */}
+                {/* {t('routeSpecificSettings')} */}
                 <div className="p-4 bg-muted/30 rounded-lg">
                   <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-sm font-medium">Route-Specific Settings</h4>
+                    <h4 className="text-sm font-medium">{t('routeSpecificSettings')}</h4>
                     <Button
                       variant="outline"
                       size="sm"
+                      className="btn-primary"
                       onClick={resetRouteToDefault}
                     >
-                      Use Defaults
+                      {t('useDefaults')}
                     </Button>
                   </div>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div>
-                      <label className="text-sm font-medium">Ascent Speed (m/h)</label>
-                      <Input
-                        type="number"
-                        value={getEffectiveSettings(selectedRoute).ascentSpeed}
-                        onChange={(e) => updateRouteSettings('ascentSpeed', parseFloat(e.target.value))}
-                        step="10"
-                        className="mt-1"
-                      />
+                  
+                  {/* Activity Mode and Speed Settings */}
+                  <div className="mb-6">
+                    <h4 className="text-sm font-medium mb-4">Speeds</h4>
+                    
+                    {/* Activity Mode Selector */}
+                    <div className="mb-4">
+                      <div className="relative">
+                        <select
+                          value={getEffectiveSettings(selectedRoute).activityMode || settings.activityMode}
+                          onChange={(e) => updateRouteSettings('activityMode', e.target.value)}
+                          className="appearance-none bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent w-full"
+                          title="Select activity mode for this route"
+                        >
+                          <option value="hiking">🥾 {t('hiking')}</option>
+                          <option value="snowshoes">❄️ {t('snowshoes')}</option>
+                          <option value="skiTouring">🎿 {t('skiTouring')}</option>
+                        </select>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Speeds for this route (m/h)
+                      </p>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium">Descent Speed (m/h)</label>
-                      <Input
-                        type="number"
-                        value={getEffectiveSettings(selectedRoute).descentSpeed}
-                        onChange={(e) => updateRouteSettings('descentSpeed', parseFloat(e.target.value))}
-                        step="10"
-                        className="mt-1"
-                      />
+                    
+                    {/* Speed Settings in 3 columns */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-xs text-muted-foreground">Ascent</label>
+                        <Input
+                          type="number"
+                          value={getEffectiveSettings(selectedRoute).ascentSpeed}
+                          onChange={(e) => updateRouteSettings('ascentSpeed', parseFloat(e.target.value))}
+                          step="10"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Descent</label>
+                        <Input
+                          type="number"
+                          value={getEffectiveSettings(selectedRoute).descentSpeed}
+                          onChange={(e) => updateRouteSettings('descentSpeed', parseFloat(e.target.value))}
+                          step="10"
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground">Flat</label>
+                        <Input
+                          type="number"
+                          value={getEffectiveSettings(selectedRoute).flatSpeed}
+                          onChange={(e) => updateRouteSettings('flatSpeed', parseFloat(e.target.value))}
+                          step="100"
+                          className="mt-1"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium">Flat Speed (m/h)</label>
-                      <Input
-                        type="number"
-                        value={getEffectiveSettings(selectedRoute).flatSpeed}
-                        onChange={(e) => updateRouteSettings('flatSpeed', parseFloat(e.target.value))}
-                        step="100"
-                        className="mt-1"
-                      />
-                    </div>
+                  </div>
+                  
+                  <div>
                         <div>
                           <label className="text-sm font-medium">{t('startTime')}</label>
                           <Input
@@ -928,24 +1279,24 @@ function App() {
                           />
                         </div>
                         <div>
-                          <label className="text-sm font-medium">Distance Calculation</label>
+                          <label className="text-sm font-medium">{t('distanceCalculation')}</label>
                           <select
                             value={getEffectiveSettings(selectedRoute).distanceCalculationMethod}
                             onChange={(e) => updateRouteSettings('distanceCalculationMethod', e.target.value)}
                             className="mt-1 w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
                           >
-                            <option value="track">Track-based (recommended)</option>
-                            <option value="waypoint-to-waypoint">Waypoint to waypoint</option>
+                            <option value="track">{t('trackBased')}</option>
+                            <option value="waypoint-to-waypoint">{t('waypointToWaypoint')}</option>
                           </select>
                           <p className="text-xs text-muted-foreground mt-1">
                             {getEffectiveSettings(selectedRoute).distanceCalculationMethod === 'track' 
-                              ? 'Uses actual track path for accurate distances'
-                              : 'Uses straight-line distance between waypoints'
+                              ? t('trackBasedDesc')
+                              : t('waypointToWaypointDesc')
                             }
                           </p>
                         </div>
                         <div>
-                          <label className="text-sm font-medium">Safety Time (%)</label>
+                          <label className="text-sm font-medium">{t('safetyTimeLabel')}</label>
                           <Input
                             type="number"
                             value={getEffectiveSettings(selectedRoute).safetyTimePercentage}
@@ -961,49 +1312,6 @@ function App() {
                         </div>
                   </div>
                 </div>
-                
-                {/* Default settings reference */}
-                <div>
-                  <h4 className="text-sm font-medium mb-4">Default Settings (Reference)</h4>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Ascent Speed (m/h)</label>
-                      <div className="mt-1 px-3 py-2 bg-muted/50 rounded-md text-sm text-muted-foreground">
-                        {settings.ascentSpeed}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Descent Speed (m/h)</label>
-                      <div className="mt-1 px-3 py-2 bg-muted/50 rounded-md text-sm text-muted-foreground">
-                        {settings.descentSpeed}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Flat Speed (m/h)</label>
-                      <div className="mt-1 px-3 py-2 bg-muted/50 rounded-md text-sm text-muted-foreground">
-                        {settings.flatSpeed}
-                      </div>
-                    </div>
-                        <div>
-                          <label className="text-sm font-medium text-muted-foreground">{t('startTime')}</label>
-                          <div className="mt-1 px-3 py-2 bg-muted/50 rounded-md text-sm text-muted-foreground">
-                            {settings.startTime}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-muted-foreground">Distance Calculation</label>
-                          <div className="mt-1 px-3 py-2 bg-muted/50 rounded-md text-sm text-muted-foreground">
-                            {settings.distanceCalculationMethod === 'track' ? 'Track-based' : 'Waypoint to waypoint'}
-                          </div>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-muted-foreground">Safety Time (%)</label>
-                          <div className="mt-1 px-3 py-2 bg-muted/50 rounded-md text-sm text-muted-foreground">
-                            {settings.safetyTimePercentage}%
-                          </div>
-                        </div>
-                  </div>
-                </div>
             </CardContent>
           </Card>
                 </div>
@@ -1012,7 +1320,7 @@ function App() {
               {/* Help Panel */}
               {showHelp && (
                 <div className="lg:w-1/3">
-                  <Card>
+                  <Card className="shadow-mountain-lg">
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <div>
@@ -1022,11 +1330,11 @@ function App() {
                           </CardDescription>
                         </div>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
+                          className="btn-close"
                           onClick={() => handlePanelToggle('help')}
                           title="Close panel"
-                          className="h-6 w-6 p-0 -mt-1 -mr-1"
                         >
                           <X className="w-3 h-3" />
                         </Button>
@@ -1034,37 +1342,6 @@ function App() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-6">
-                        {/* Technical Details */}
-                        <div>
-                          <h4 className="text-sm font-medium mb-3">{t('technicalDetails')}</h4>
-                          <div className="space-y-2 text-sm text-muted-foreground">
-                            <div>• <strong className="text-foreground">{t('distanceCalculation')}:</strong> {t('distanceCalculationDesc')}</div>
-                            <div>• <strong className="text-foreground">{t('timeCalculation')}:</strong> {t('timeCalculationDesc')}</div>
-                            <div>• <strong className="text-foreground">{t('utmCoordinates')}:</strong> {t('utmCoordinatesDesc')}</div>
-                            <div>• <strong className="text-foreground">{t('safetyBuffer')}:</strong> {t('safetyBufferDesc')}</div>
-                            <div>• <strong className="text-foreground">{t('gpxParsing')}:</strong> {t('gpxParsingDesc')}</div>
-                            <div>• <strong className="text-foreground">{t('pdfExport')}:</strong> {t('pdfExportDesc')}</div>
-                          </div>
-                        </div>
-
-                        {/* Support */}
-                        <div>
-                          <h4 className="text-sm font-medium mb-3">{t('support')}</h4>
-                          <div className="space-y-2 text-sm">
-                            <div>
-                              <span className="text-muted-foreground">{t('reportIssues')}</span>
-                            </div>
-                            <a 
-                              href="https://github.com/Campano/gpx-route-planner/issues" 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 underline"
-                            >
-                              {t('githubIssuesPage')}
-                            </a>
-                          </div>
-                        </div>
-
                         {/* Other Tools */}
                         <div>
                           <h4 className="text-sm font-medium mb-3">{t('otherTools')}</h4>
@@ -1100,6 +1377,42 @@ function App() {
                                 </div>
                               </div>
                             </div>
+                          </div>
+                        </div>
+
+                        {/* Support */}
+                        <div>
+                          <h4 className="text-sm font-medium mb-3">{t('support')}</h4>
+                          <div className="space-y-2 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">{t('reportIssues')}</span>
+                            </div>
+                            <a 
+                              href="https://github.com/Campano/gpx-route-planner/issues" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 underline"
+                            >
+                              {t('githubIssuesPage')}
+                            </a>
+                          </div>
+                        </div>
+
+                        {/* Donate Section */}
+                        <div>
+                          <h4 className="text-sm font-medium mb-3">{t('donateDesc')}</h4>
+                          <div className="space-y-2 text-sm">
+                            <p className="text-muted-foreground">
+                              {t('donateMessage')}
+                            </p>
+                            <a 
+                              href="https://github.com/sponsors/Campano" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 underline font-medium"
+                            >
+                              {t('donate')}
+                            </a>
                           </div>
                         </div>
 
@@ -1139,6 +1452,38 @@ function App() {
               )}
         </div>
       </div>
+      
+      {/* Clean All Data Confirmation Dialog */}
+      {showCleanDataDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+            <div className="flex items-center mb-4">
+              <AlertTriangle className="w-6 h-6 text-red-500 mr-3" />
+              <h3 className="text-lg font-semibold text-gray-900">{t('cleanAllDataConfirm')}</h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              {t('cleanAllDataMessage')}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setShowCleanDataDialog(false)}
+                className="bg-gray-50 border-gray-300 text-gray-800 hover:bg-gray-100"
+              >
+                {t('cancel')}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleCleanAllData}
+                className="btn-danger"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                {t('confirm')}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

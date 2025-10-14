@@ -40,6 +40,21 @@ function convertToUTM(lat, lon) {
 }
 
 /**
+ * Calculate maximum elevation from track points
+ * @param {Array} trackPoints - Array of track points
+ * @returns {number} Maximum elevation in meters
+ */
+function calculateMaxElevation(trackPoints) {
+  let maxElevation = -Infinity;
+  trackPoints.forEach(point => {
+    if (point.elevation && point.elevation > maxElevation) {
+      maxElevation = point.elevation;
+    }
+  });
+  return maxElevation === -Infinity ? 0 : maxElevation;
+}
+
+/**
  * Calculate segment time using proper t = sum(d/v) formula (pure movement time only)
  * @param {number} distance - Segment distance in km
  * @param {number} elevationGain - Elevation gain in meters
@@ -48,36 +63,73 @@ function convertToUTM(lat, lon) {
  * @returns {number} Time in minutes
  */
 function calculateSegmentTime(distance, elevationGain, elevationLoss, settings) {
-  const { ascentSpeed, descentSpeed, flatSpeed } = settings;
+  // Validate inputs and provide defaults
+  const ascentSpeed = settings?.ascentSpeed || 300; // m/h default
+  const descentSpeed = settings?.descentSpeed || 400; // m/h default  
+  const flatSpeed = settings?.flatSpeed || 5000; // m/h default
+  
+  // Validate that speeds are valid numbers
+  if (!isFinite(ascentSpeed) || ascentSpeed <= 0) {
+    console.warn('Invalid ascentSpeed:', ascentSpeed, 'using default 300');
+    ascentSpeed = 300;
+  }
+  if (!isFinite(descentSpeed) || descentSpeed <= 0) {
+    console.warn('Invalid descentSpeed:', descentSpeed, 'using default 400');
+    descentSpeed = 400;
+  }
+  if (!isFinite(flatSpeed) || flatSpeed <= 0) {
+    console.warn('Invalid flatSpeed:', flatSpeed, 'using default 5000');
+    flatSpeed = 5000;
+  }
+  
+  // Validate distance and elevation values
+  const validDistance = isFinite(distance) ? Math.max(0, distance) : 0;
+  const validElevationGain = isFinite(elevationGain) ? Math.max(0, elevationGain) : 0;
+  const validElevationLoss = isFinite(elevationLoss) ? Math.max(0, elevationLoss) : 0;
   
   // Convert distance from km to meters
-  const distanceMeters = distance * 1000;
+  const distanceMeters = validDistance * 1000;
   
   let totalTime = 0;
   
   // Calculate time for each component: t = d/v
   
   // 1. Flat distance time (horizontal movement)
-  const flatDistance = distanceMeters - elevationGain - elevationLoss;
+  const flatDistance = distanceMeters - validElevationGain - validElevationLoss;
   if (flatDistance > 0) {
     const flatTime = flatDistance / flatSpeed; // Time in hours
     totalTime += flatTime;
   }
   
   // 2. Ascent time (vertical movement up)
-  if (elevationGain > 0) {
-    const ascentTime = elevationGain / ascentSpeed; // Time in hours
+  if (validElevationGain > 0) {
+    const ascentTime = validElevationGain / ascentSpeed; // Time in hours
     totalTime += ascentTime;
   }
   
   // 3. Descent time (vertical movement down)
-  if (elevationLoss > 0) {
-    const descentTime = elevationLoss / descentSpeed; // Time in hours
+  if (validElevationLoss > 0) {
+    const descentTime = validElevationLoss / descentSpeed; // Time in hours
     totalTime += descentTime;
   }
   
   // Convert from hours to minutes (no terrain penalty applied here)
-  return totalTime * 60;
+  const result = totalTime * 60;
+  
+  // Final validation
+  if (!isFinite(result) || result < 0) {
+    console.warn('Invalid time calculation result:', result, 'for inputs:', {
+      distance: validDistance,
+      elevationGain: validElevationGain,
+      elevationLoss: validElevationLoss,
+      ascentSpeed,
+      descentSpeed,
+      flatSpeed
+    });
+    return 0; // Return 0 minutes instead of NaN
+  }
+  
+  return result;
 }
 
 /**
@@ -356,7 +408,8 @@ export function parseGPXFile(gpxContent, settings) {
         name: track.name || 'Unnamed Route',
         totalDistance: totalDistance,
         totalAscent: totalAscent,
-        totalDescent: totalDescent
+        totalDescent: totalDescent,
+        maxElevation: calculateMaxElevation(trackPoints)
       }
     };
   } catch (error) {
@@ -511,7 +564,8 @@ function parseWaypointToWaypoint(gpxWaypoints, trackPoints, settings, trackName)
       name: trackName || 'Unnamed Route',
       totalDistance: totalDistance,
       totalAscent: totalAscent,
-      totalDescent: totalDescent
+      totalDescent: totalDescent,
+      maxElevation: calculateMaxElevation(trackPoints)
     }
   };
 }
@@ -658,7 +712,8 @@ function parseTrackAsWaypoints(trackPoints, settings, trackName) {
       name: trackName || 'Unnamed Route',
         totalDistance: totalDistance,
         totalAscent: totalAscent,
-        totalDescent: totalDescent
+        totalDescent: totalDescent,
+        maxElevation: calculateMaxElevation(trackPoints)
       }
     };
 }
