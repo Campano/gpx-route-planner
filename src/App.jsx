@@ -1065,6 +1065,44 @@ function App() {
                           </div>
                         </div>
 
+                        {/* Other Tools */}
+                        <div>
+                          <h4 className="text-sm font-medium mb-3">{t('otherTools')}</h4>
+                          <div className="space-y-3 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">{t('otherToolsDesc')}</span>
+                            </div>
+                            <div className="space-y-2">
+                              <div>
+                                <a 
+                                  href="https://gpx.studio" 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 underline font-medium"
+                                >
+                                  {t('gpxStudio')}
+                                </a>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {t('gpxStudioDesc')}
+                                </div>
+                              </div>
+                              <div>
+                                <a 
+                                  href="https://www.gpsvisualizer.com/profile_input" 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 hover:text-blue-800 underline font-medium"
+                                >
+                                  {t('gpsVisualizer')}
+                                </a>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  {t('gpsVisualizerDesc')}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
                         {/* About */}
                         <div>
                           <h4 className="text-sm font-medium mb-3">{t('about')}</h4>

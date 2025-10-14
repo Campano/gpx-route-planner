@@ -116,6 +116,14 @@ export const translations = {
     reportIssues: "Report issues and suggestions:",
     githubIssuesPage: "GitHub Issues Page",
     
+    // Other Tools
+    otherTools: "Other Tools",
+    otherToolsDesc: "Useful tools for GPX file editing and visualization",
+    gpxStudio: "GPX Studio",
+    gpxStudioDesc: "Online GPX file editor with route planning capabilities",
+    gpsVisualizer: "GPS Visualizer",
+    gpsVisualizerDesc: "Profile builder and data visualization tools",
+    
     // About
     packageManager: "Package Manager",
   },
@@ -232,6 +240,14 @@ export const translations = {
     // Support
     reportIssues: "Signaler des problèmes et suggestions:",
     githubIssuesPage: "Page des Problèmes GitHub",
+    
+    // Other Tools
+    otherTools: "Autres Outils",
+    otherToolsDesc: "Outils utiles pour l'édition et la visualisation de fichiers GPX",
+    gpxStudio: "GPX Studio",
+    gpxStudioDesc: "Éditeur de fichiers GPX en ligne avec capacités de planification d'itinéraires",
+    gpsVisualizer: "GPS Visualizer",
+    gpsVisualizerDesc: "Outil de création de profils et de visualisation de données",
     
     // About
     packageManager: "Gestionnaire de Paquets",
@@ -350,6 +366,14 @@ export const translations = {
     reportIssues: "Reportar problemas y sugerencias:",
     githubIssuesPage: "Página de Problemas de GitHub",
     
+    // Other Tools
+    otherTools: "Otras Herramientas",
+    otherToolsDesc: "Herramientas útiles para edición y visualización de archivos GPX",
+    gpxStudio: "GPX Studio",
+    gpxStudioDesc: "Editor de archivos GPX en línea con capacidades de planificación de rutas",
+    gpsVisualizer: "GPS Visualizer",
+    gpsVisualizerDesc: "Herramientas de creación de perfiles y visualización de datos",
+    
     // About
     packageManager: "Gestor de Paquetes",
   },
@@ -466,6 +490,14 @@ export const translations = {
     // Support
     reportIssues: "Reportar problemes i suggeriments:",
     githubIssuesPage: "Pàgina de Problemes de GitHub",
+    
+    // Other Tools
+    otherTools: "Altres Eines",
+    otherToolsDesc: "Eines útils per a l'edició i visualització de fitxers GPX",
+    gpxStudio: "GPX Studio",
+    gpxStudioDesc: "Editor de fitxers GPX en línia amb capacitats de planificació d'itineraris",
+    gpsVisualizer: "GPS Visualizer",
+    gpsVisualizerDesc: "Eines de creació de perfils i visualització de dades",
     
     // About
     packageManager: "Gestor de Paquets",
