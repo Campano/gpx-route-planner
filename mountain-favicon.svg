@@ -1,0 +1,12 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Mountain peaks -->
+  <path d="M2 24 L8 8 L14 16 L20 4 L26 12 L30 24 Z" fill="#4A5568" stroke="#2D3748" stroke-width="0.5"/>
+  
+  <!-- Snow caps on peaks -->
+  <path d="M8 8 L6 10 L10 10 Z" fill="white"/>
+  <path d="M20 4 L18 6 L22 6 Z" fill="white"/>
+  <path d="M26 12 L24 14 L28 14 Z" fill="white"/>
+  
+  <!-- Base shadow -->
+  <path d="M2 24 L30 24 L30 26 L2 26 Z" fill="#2D3748" opacity="0.3"/>
+</svg>
