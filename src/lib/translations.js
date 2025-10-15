@@ -15,7 +15,6 @@ export const translations = {
     routeSettings: "Configuration",
     routeSettingsDesc: "Configure settings for \"{routeName}\" (overrides default)",
     routeSpecificSettings: "Route-specific settings",
-    useDefaults: "Use Defaults",
     ascentSpeedLabel: "Ascent Speed (m/h)",
     descentSpeedLabel: "Descent Speed (m/h)",
     flatSpeedLabel: "Flat Speed (m/h)",
@@ -81,7 +80,6 @@ export const translations = {
     startTime: "Starting Time",
     distanceCalculation: "Distance Calculation",
     safetyTime: "Safety Time (%)",
-    useDefaults: "Use Defaults",
     
     // Help
     technicalDetails: "Technical Details",
@@ -166,6 +164,12 @@ export const translations = {
     cleanAllData: "Clean All Data",
     cleanAllDataConfirm: "Are you sure?",
     cleanAllDataMessage: "This will permanently delete all saved routes and personal settings. This action cannot be undone.",
+    deleteRoute: "Delete Route",
+    deleteRouteConfirm: "Delete this route?",
+    deleteRouteMessage: "This will permanently delete the selected route. This action cannot be undone.",
+    deleteRouteConfirmTooltip: "Click here to confirm that you want to delete this route and all its data",
+    exportCSV: "Export CSV",
+    exportCSVDesc: "Export route data as CSV with units in headers",
     confirm: "Confirm",
     cancel: "Cancel",
     
@@ -187,7 +191,6 @@ export const translations = {
     routeSettings: "Configuration",
     routeSettingsDesc: "Configurer les paramètres pour \"{routeName}\" (remplace les valeurs par défaut)",
     routeSpecificSettings: "Paramètres spécifiques à la route",
-    useDefaults: "Utiliser les Valeurs par Défaut",
     ascentSpeedLabel: "Vitesse de Montée (m/h)",
     descentSpeedLabel: "Vitesse de Descente (m/h)",
     flatSpeedLabel: "Vitesse sur Terrain Plat (m/h)",
@@ -253,7 +256,6 @@ export const translations = {
     startTime: "Heure de Départ",
     distanceCalculation: "Calcul de Distance",
     safetyTime: "Temps de Sécurité (%)",
-    useDefaults: "Utiliser les Défauts",
     
     // Help
     technicalDetails: "Détails Techniques",
@@ -338,6 +340,12 @@ export const translations = {
     cleanAllData: "Effacer Toutes les Données",
     cleanAllDataConfirm: "Êtes-vous sûr ?",
     cleanAllDataMessage: "Cela supprimera définitivement toutes les routes sauvegardées et les paramètres personnels. Cette action ne peut pas être annulée.",
+    deleteRoute: "Supprimer la Route",
+    deleteRouteConfirm: "Supprimer cette route ?",
+    deleteRouteMessage: "Cela supprimera définitivement la route sélectionnée. Cette action ne peut pas être annulée.",
+    deleteRouteConfirmTooltip: "Cliquez ici pour confirmer que vous voulez supprimer cette route et toutes ses données",
+    exportCSV: "Exporter CSV",
+    exportCSVDesc: "Exporter les données de route en CSV avec les unités dans les en-têtes",
     confirm: "Confirmer",
     cancel: "Annuler",
     
@@ -359,7 +367,6 @@ export const translations = {
     routeSettings: "Ajustes",
     routeSettingsDesc: "Configurar ajustes para \"{routeName}\" (anula los valores por defecto)",
     routeSpecificSettings: "Configuración específica de la ruta",
-    useDefaults: "Usar Valores por Defecto",
     ascentSpeedLabel: "Velocidad de Ascenso (m/h)",
     descentSpeedLabel: "Velocidad de Descenso (m/h)",
     flatSpeedLabel: "Velocidad en Terreno Plano (m/h)",
@@ -425,7 +432,6 @@ export const translations = {
     startTime: "Hora de Inicio",
     distanceCalculation: "Cálculo de Distancia",
     safetyTime: "Tiempo de Seguridad (%)",
-    useDefaults: "Usar Defectos",
     
     // Help
     technicalDetails: "Detalles Técnicos",
@@ -510,6 +516,12 @@ export const translations = {
     cleanAllData: "Limpiar Todos los Datos",
     cleanAllDataConfirm: "¿Estás seguro?",
     cleanAllDataMessage: "Esto eliminará permanentemente todas las rutas guardadas y configuraciones personales. Esta acción no se puede deshacer.",
+    deleteRoute: "Eliminar Ruta",
+    deleteRouteConfirm: "¿Eliminar esta ruta?",
+    deleteRouteMessage: "Esto eliminará permanentemente la ruta seleccionada. Esta acción no se puede deshacer.",
+    deleteRouteConfirmTooltip: "Haz clic aquí para confirmar que quieres eliminar esta ruta y todos sus datos",
+    exportCSV: "Exportar CSV",
+    exportCSVDesc: "Exportar datos de ruta como CSV con unidades en los encabezados",
     confirm: "Confirmar",
     cancel: "Cancelar",
     
@@ -531,7 +543,6 @@ export const translations = {
     routeSettings: "Ajustos",
     routeSettingsDesc: "Configurar ajustos per a \"{routeName}\" (anula els valors per defecte)",
     routeSpecificSettings: "Configuració específica de la ruta",
-    useDefaults: "Utilitzar Valors per Defecte",
     ascentSpeedLabel: "Velocitat d'Ascens (m/h)",
     descentSpeedLabel: "Velocitat de Descens (m/h)",
     flatSpeedLabel: "Velocitat en Terreny Plà (m/h)",
@@ -597,7 +608,6 @@ export const translations = {
     startTime: "Hora d'Inici",
     distanceCalculation: "Càlcul de Distància",
     safetyTime: "Temps de Seguretat (%)",
-    useDefaults: "Usar Defectes",
     
     // Help
     technicalDetails: "Detalls Tècnics",
@@ -682,6 +692,12 @@ export const translations = {
     cleanAllData: "Netejar Totes les Dades",
     cleanAllDataConfirm: "Estàs segur?",
     cleanAllDataMessage: "Això eliminarà permanentment totes les rutes desades i configuracions personals. Aquesta acció no es pot desfer.",
+    deleteRoute: "Eliminar Ruta",
+    deleteRouteConfirm: "Eliminar aquesta ruta?",
+    deleteRouteMessage: "Això eliminarà permanentment la ruta seleccionada. Aquesta acció no es pot desfer.",
+    deleteRouteConfirmTooltip: "Feu clic aquí per confirmar que voleu eliminar aquesta ruta i totes les seves dades",
+    exportCSV: "Exportar CSV",
+    exportCSVDesc: "Exportar dades de ruta com CSV amb unitats als encapçalats",
     confirm: "Confirmar",
     cancel: "Cancel·lar",
     

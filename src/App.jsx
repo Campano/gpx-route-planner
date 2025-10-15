@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table.jsx'
-import { Upload, Mountain, Settings, Settings2, FileText, Trash2, Download, EyeOff, FolderOpen, Edit3, AlertTriangle, HelpCircle, X, Globe, Plus, Footprints, Snowflake, Zap, Heart } from 'lucide-react'
+import { Upload, Mountain, Settings, Settings2, FileText, Trash2, Download, EyeOff, FolderOpen, Edit3, AlertTriangle, HelpCircle, X, Globe, Plus, Footprints, Snowflake, Zap, Heart, FileSpreadsheet } from 'lucide-react'
 import { parseGPXFile, recalculateWaypoints, formatTimeHoursMinutes, formatTimeHoursMinutesForMin, formatTotalTimeWithPercentage } from './lib/calculationService.js'
 import { exportRouteToPDF } from './lib/pdfExportService.js'
 import GitHubCorner from './components/GitHubCorner.jsx'
@@ -60,6 +60,7 @@ function App() {
   const [isDragOver, setIsDragOver] = useState(false)
   const [showNewRoute, setShowNewRoute] = useState(false)
   const [showCleanDataDialog, setShowCleanDataDialog] = useState(false)
+  const [routeConfirmingDelete, setRouteConfirmingDelete] = useState(null)
   const dragCounterRef = useRef(0)
 
   // Translation helper
@@ -170,6 +171,25 @@ function App() {
     }
   }
 
+  // Update route metadata based on last waypoint
+  const updateRouteMetadata = (route, waypoints) => {
+    if (!waypoints || waypoints.length === 0) return route
+
+    const lastWaypoint = waypoints[waypoints.length - 1]
+    const maxElevation = Math.max(...waypoints.map(wp => wp.elevation || 0))
+    
+    return {
+      ...route,
+      metadata: {
+        ...route.metadata,
+        totalDistance: lastWaypoint.totalDistance || 0,
+        totalAscent: lastWaypoint.totalAscent || 0,
+        totalDescent: lastWaypoint.totalDescent || 0,
+        maxElevation: maxElevation
+      }
+    }
+  }
+
   // Handle GPX file upload
   const handleFileUpload = async (file) => {
     if (!file) return
@@ -183,6 +203,7 @@ function App() {
         name: parsed.metadata.name || file.name.replace('.gpx', ''),
         gpxData: parsed.gpxData,
         waypoints: parsed.waypoints,
+        metadata: parsed.metadata,
         settings: {
           activityMode: settings.activityMode,
           ascentSpeed: getCurrentSpeeds().ascentSpeed,
@@ -265,11 +286,13 @@ function App() {
     if (field === 'terrainDifficultyPenalty' || field === 'stopDuration') {
       const effectiveSettings = getEffectiveSettings(selectedRoute)
       const recalculated = recalculateWaypoints(updatedWaypoints, effectiveSettings)
-      const updatedRoute = { ...selectedRoute, waypoints: recalculated }
+      const updatedRouteWithWaypoints = { ...selectedRoute, waypoints: recalculated }
+      const updatedRoute = updateRouteMetadata(updatedRouteWithWaypoints, recalculated)
       setSelectedRoute(updatedRoute)
       setRoutes(routes.map(r => r.id === updatedRoute.id ? updatedRoute : r))
     } else {
-      const updatedRoute = { ...selectedRoute, waypoints: updatedWaypoints }
+      const updatedRouteWithWaypoints = { ...selectedRoute, waypoints: updatedWaypoints }
+      const updatedRoute = updateRouteMetadata(updatedRouteWithWaypoints, updatedWaypoints)
       setSelectedRoute(updatedRoute)
       setRoutes(routes.map(r => r.id === updatedRoute.id ? updatedRoute : r))
     }
@@ -281,6 +304,22 @@ function App() {
     if (selectedRoute?.id === routeId) {
       setSelectedRoute(null)
     }
+    setRouteConfirmingDelete(null)
+  }
+
+  // Handle delete route confirmation - show tooltip
+  const handleDeleteRouteClick = (routeId) => {
+    setRouteConfirmingDelete(routeId)
+  }
+
+  // Confirm delete route
+  const confirmDeleteRoute = (routeId) => {
+    deleteRoute(routeId)
+  }
+
+  // Cancel delete route
+  const cancelDeleteRoute = () => {
+    setRouteConfirmingDelete(null)
   }
 
   // Update default settings
@@ -328,25 +367,14 @@ function App() {
       }
     }
     
-    const updatedRoute = { ...selectedRoute, settings: newRouteSettings }
-    const recalculated = recalculateWaypoints(updatedRoute.waypoints, newRouteSettings)
-    updatedRoute.waypoints = recalculated
-    
-      setSelectedRoute(updatedRoute)
-      setRoutes(routes.map(r => r.id === updatedRoute.id ? updatedRoute : r))
-    }
-
-  // Reset route to use default settings
-  const resetRouteToDefault = () => {
-    if (!selectedRoute) return
-    
-    const updatedRoute = { ...selectedRoute, settings: null }
-    const recalculated = recalculateWaypoints(updatedRoute.waypoints, settings)
-    updatedRoute.waypoints = recalculated
+    const updatedRouteWithSettings = { ...selectedRoute, settings: newRouteSettings }
+    const recalculated = recalculateWaypoints(updatedRouteWithSettings.waypoints, newRouteSettings)
+    const updatedRouteWithWaypoints = { ...updatedRouteWithSettings, waypoints: recalculated }
+    const updatedRoute = updateRouteMetadata(updatedRouteWithWaypoints, recalculated)
     
     setSelectedRoute(updatedRoute)
     setRoutes(routes.map(r => r.id === updatedRoute.id ? updatedRoute : r))
-  }
+    }
 
   // Export to PDF
   const handleExportPDF = () => {
@@ -354,7 +382,135 @@ function App() {
       alert('Please select a route to export')
       return
     }
-    exportRouteToPDF(selectedRoute, settings)
+    exportRouteToPDF(selectedRoute, settings, language)
+  }
+
+  // Export to CSV
+  const handleExportCSV = () => {
+    if (!selectedRoute) {
+      alert('Please select a route to export')
+      return
+    }
+
+    // Helper function to format time in hours and minutes
+    const formatTimeHoursMinutesForMin = (minutes) => {
+      const hours = Math.floor(minutes / 60);
+      const mins = Math.round(minutes % 60);
+      if (hours > 0) {
+        return `${hours}h ${mins}min`;
+      } else {
+        return `${mins}min`;
+      }
+    };
+
+    // CSV headers with units
+    const headers = [
+      'Waypoint',
+      'Position_UTM',
+      'Position_Elevation_m',
+      'Segment_Ascent_m',
+      'Segment_Descent_m', 
+      'Segment_Distance_km',
+      'Route_Ascent_m',
+      'Route_Descent_m',
+      'Route_Distance_km',
+      'Segment_Time',
+      'Penalty_percent',
+      'Penalty_Time',
+      'Rest_min',
+      'Total_Time',
+      'Progression_percent',
+      'Time',
+      'Notes',
+      'Decision_Point'
+    ];
+
+    // Create CSV data
+    const csvData = selectedRoute.waypoints.map((wp, index) => {
+      const penaltyDisplay = `${(wp.terrainDifficultyPenalty * 100).toFixed(0)}%`;
+      
+      const penaltyTime = wp.terrainDifficultyPenalty > 0 ? 
+        formatTimeHoursMinutesForMin(wp.segmentTime * wp.terrainDifficultyPenalty) : '';
+
+      return [
+        wp.name || '',
+        wp.utm ? wp.utm.replace(/^Zone \d+ /, '') : 'N/A',
+        wp.elevation?.toFixed(0) || '0',
+        index === 0 ? '' : (wp.segmentAscent?.toFixed(0) || '0'),
+        index === 0 ? '' : (wp.segmentDescent?.toFixed(0) || '0'),
+        index === 0 ? '' : (wp.segmentDistance?.toFixed(2) || '0.00'),
+        wp.totalAscent?.toFixed(0) || '0',
+        wp.totalDescent?.toFixed(0) || '0',
+        wp.totalDistance?.toFixed(2) || '0.00',
+        index === 0 ? '' : formatTimeHoursMinutesForMin(wp.segmentTime || 0),
+        penaltyDisplay,
+        penaltyTime,
+        index === 0 ? '' : (wp.stopDuration?.toFixed(0) || '0'),
+        formatTimeHoursMinutesForMin(wp.totalTime || 0),
+        selectedRoute.waypoints.length > 0 ? 
+          `${Math.round(((wp.totalTime || 0) / (selectedRoute.waypoints[selectedRoute.waypoints.length - 1].totalTime || 1)) * 100)}%` : 
+          '0%',
+        wp.hour || '',
+        wp.comments || '',
+        wp.isDecisionPoint ? 'Yes' : 'No'
+      ];
+    });
+
+    // Add safety time row if there are waypoints
+    if (selectedRoute.waypoints.length > 0) {
+      const lastWaypoint = selectedRoute.waypoints[selectedRoute.waypoints.length - 1];
+      const effectiveSettings = getEffectiveSettings(selectedRoute);
+      const safetyTime = (lastWaypoint.totalTime * (effectiveSettings.safetyTimePercentage / 100));
+      const totalWithSafety = lastWaypoint.totalTime + safetyTime;
+      
+      // Calculate arrival time with safety
+      const arrivalTime = calculateArrivalTime(effectiveSettings.startTime || '08:00', totalWithSafety);
+
+      const safetyRow = [
+        `Safety Time (${effectiveSettings.safetyTimePercentage}%)`,
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        formatTimeHoursMinutesForMin(safetyTime),
+        '',
+        '',
+        '',
+        formatTimeHoursMinutesForMin(totalWithSafety),
+        `100+${effectiveSettings.safetyTimePercentage}%`,
+        arrivalTime,
+        '',
+        ''
+      ];
+      
+      csvData.push(safetyRow);
+    }
+
+    // Convert to CSV string
+    const csvContent = [headers, ...csvData]
+      .map(row => row.map(cell => typeof cell === 'string' && cell.includes(',') ? `"${cell}"` : cell).join(','))
+      .join('\n');
+
+    // Create and download file
+    try {
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `${selectedRoute.name || 'route'}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert(`Error exporting CSV: ${error.message}`);
+    }
   }
 
   // Clean all data
@@ -550,7 +706,7 @@ function App() {
                     <CardDescription>
                       <div className="text-xs space-y-1">
                         <div className="font-medium">
-                          {selectedRoute.waypoints.length} waypoints • {selectedRoute.metadata?.totalDistance?.toFixed(2) || '0.00'} km • {selectedRoute.metadata?.totalAscent?.toFixed(0) || '0'}m ↑ • {selectedRoute.metadata?.totalDescent?.toFixed(0) || '0'}m ↓ • {selectedRoute.metadata?.maxElevation?.toFixed(0) || '0'}m max
+                          {selectedRoute.waypoints.length} waypoints • {selectedRoute.metadata?.totalDistance?.toFixed(2) || '0.00'} km • +{selectedRoute.metadata?.totalAscent?.toFixed(0) || '0'}m • -{selectedRoute.metadata?.totalDescent?.toFixed(0) || '0'}m • {selectedRoute.metadata?.maxElevation?.toFixed(0) || '0'}m max
                         </div>
                         <div 
                           className="text-muted-foreground"
@@ -709,8 +865,8 @@ function App() {
                             ) : editingPenalty === waypoint.id ? (
                               <Input
                                 type="number"
-                                value={waypoint.terrainDifficultyPenalty}
-                                onChange={(e) => updateWaypoint(waypoint.id, 'terrainDifficultyPenalty', parseFloat(e.target.value) || 0)}
+                                value={(waypoint.terrainDifficultyPenalty * 100).toFixed(0)}
+                                onChange={(e) => updateWaypoint(waypoint.id, 'terrainDifficultyPenalty', (parseFloat(e.target.value) || 0) / 100)}
                                 onBlur={() => setEditingPenalty(null)}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
@@ -727,7 +883,14 @@ function App() {
                               />
                             ) : (
                               <div className="flex items-center justify-center gap-1">
-                                <span className="text-xs penalty-text">{(waypoint.terrainDifficultyPenalty * 100).toFixed(0)}%</span>
+                                <span className="text-xs penalty-text">
+                                  {(waypoint.terrainDifficultyPenalty * 100).toFixed(0)}%
+                                  {waypoint.terrainDifficultyPenalty > 0 && (
+                                    <span className="text-muted-foreground">
+                                      {' '}({formatTimeHoursMinutesForMin(waypoint.segmentTime * waypoint.terrainDifficultyPenalty)})
+                                    </span>
+                                  )}
+                                </span>
                                 <Edit3 className="w-3 h-3 text-muted-foreground penalty-icon flex-shrink-0" />
                               </div>
                             )}
@@ -947,17 +1110,53 @@ function App() {
                         <FileText className="w-4 h-4" />
                         <span className="text-sm font-medium truncate">{route.name}</span>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="btn-primary"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          deleteRoute(route.id)
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
+                      <div className="relative">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={routeConfirmingDelete === route.id ? "btn-danger bg-red-100 border-red-300" : "btn-danger"}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteRouteClick(route.id)
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                        {routeConfirmingDelete === route.id && (
+                          <div className="absolute right-0 top-0 -translate-y-full -translate-x-2 mb-2 p-4 bg-white border border-gray-200 text-gray-700 text-xs rounded-lg shadow-lg z-10 w-64">
+                            <div className="whitespace-normal mb-3">
+                              {t('deleteRouteMessage')}
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 px-2 text-xs bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  cancelDeleteRoute()
+                                }}
+                              >
+                                {t('cancel')}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 px-2 text-xs btn-danger"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  confirmDeleteRoute(route.id)
+                                }}
+                              >
+                                <Trash2 className="w-3 h-3 mr-1" />
+                                {t('deleteRoute')}
+                              </Button>
+                            </div>
+                            <div className="absolute top-full right-6 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
+                            <div className="absolute top-full right-6 -mt-px w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-200"></div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1198,16 +1397,8 @@ function App() {
               <CardContent className="space-y-6">
                 {/* {t('routeSpecificSettings')} */}
                 <div className="p-4 bg-muted/30 rounded-lg">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="mb-4">
                     <h4 className="text-sm font-medium">{t('routeSpecificSettings')}</h4>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="btn-primary"
-                      onClick={resetRouteToDefault}
-                    >
-                      {t('useDefaults')}
-                    </Button>
                   </div>
                   
                   {/* Activity Mode and Speed Settings */}
@@ -1311,6 +1502,22 @@ function App() {
                           </p>
                         </div>
                   </div>
+                </div>
+                
+                {/* CSV Export Button */}
+                <div className="pt-4 border-t border-border">
+                  <Button
+                    variant="outline"
+                    className="w-full btn-primary"
+                    onClick={handleExportCSV}
+                    disabled={!selectedRoute}
+                  >
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    {t('exportCSV')}
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2 text-center">
+                    {t('exportCSVDesc')}
+                  </p>
                 </div>
             </CardContent>
           </Card>
@@ -1484,6 +1691,7 @@ function App() {
           </div>
         </div>
       )}
+
     </div>
   )
 }
