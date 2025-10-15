@@ -422,7 +422,7 @@ function App() {
       
       <div className="max-w-7xl mx-auto space-y-6 panel-transition">
         {/* Header */}
-        <div className="flex items-center justify-between rounded-xl p-6 shadow-mountain-lg bg-card">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl p-6 shadow-mountain-lg bg-card">
           <div className="flex items-center gap-3">
             <Mountain className="w-10 h-10 text-primary" />
             <div>
@@ -430,7 +430,7 @@ function App() {
               <p className="text-sm text-muted-foreground">{t('appDescription')}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -503,9 +503,9 @@ function App() {
 
 
             {/* Route Details and Panels */}
-            <div className="flex flex-col lg:flex-row gap-6 panel-slide-in">
+            <div className="flex flex-col-reverse lg:flex-row gap-6 panel-slide-in">
           {/* Waypoint Table - Main content */}
-          <div className={`flex-1 ${activePanel ? 'lg:w-2/3' : 'w-full'}`}>
+          <div className={`flex-1 ${activePanel ? 'lg:w-2/3' : 'w-full'} ${activePanel ? 'lg:order-1' : ''}`}>
           <Card className="shadow-mountain-lg">
             {selectedRoute && (
               <>
@@ -582,7 +582,7 @@ function App() {
                       </div>
                     </CardDescription>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row items-center gap-2">
                       <Button
                         variant="outline"
                         size="sm"
@@ -909,7 +909,7 @@ function App() {
 
               {/* Route Manager Panel */}
               {showRouteManager && (
-                <div className="lg:w-1/3">
+                <div className="lg:w-1/3 lg:order-2">
                   <Card className="shadow-mountain-lg">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -1015,7 +1015,7 @@ function App() {
 
               {/* General Settings Panel */}
               {showSettings && (
-                <div className="lg:w-1/3">
+                <div className="lg:w-1/3 lg:order-2">
                   <Card className="shadow-mountain-lg">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -1174,7 +1174,7 @@ function App() {
 
               {/* Route Settings Panel */}
               {showRouteSettings && selectedRoute && (
-                <div className="lg:w-1/3">
+                <div className="lg:w-1/3 lg:order-2">
                   <Card className="shadow-mountain-lg">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -1319,7 +1319,7 @@ function App() {
 
               {/* Help Panel */}
               {showHelp && (
-                <div className="lg:w-1/3">
+                <div className="lg:w-1/3 lg:order-2">
                   <Card className="shadow-mountain-lg">
                     <CardHeader>
                       <div className="flex items-center justify-between">
