@@ -65,8 +65,8 @@ function calculateMaxElevation(trackPoints) {
 function calculateSegmentTime(distance, elevationGain, elevationLoss, settings) {
   // Validate inputs and provide defaults
   const ascentSpeed = settings?.ascentSpeed || 300; // m/h default
-  const descentSpeed = settings?.descentSpeed || 400; // m/h default  
-  const flatSpeed = settings?.flatSpeed || 5000; // m/h default
+  const descentSpeed = settings?.descentSpeed || 500; // m/h default  
+  const flatSpeed = settings?.flatSpeed || 4000; // m/h default
   
   // Validate that speeds are valid numbers
   if (!isFinite(ascentSpeed) || ascentSpeed <= 0) {
@@ -74,12 +74,12 @@ function calculateSegmentTime(distance, elevationGain, elevationLoss, settings) 
     ascentSpeed = 300;
   }
   if (!isFinite(descentSpeed) || descentSpeed <= 0) {
-    console.warn('Invalid descentSpeed:', descentSpeed, 'using default 400');
-    descentSpeed = 400;
+    console.warn('Invalid descentSpeed:', descentSpeed, 'using default 500');
+    descentSpeed = 500;
   }
   if (!isFinite(flatSpeed) || flatSpeed <= 0) {
-    console.warn('Invalid flatSpeed:', flatSpeed, 'using default 5000');
-    flatSpeed = 5000;
+    console.warn('Invalid flatSpeed:', flatSpeed, 'using default 4000');
+    flatSpeed = 4000;
   }
   
   // Validate distance and elevation values
@@ -94,10 +94,9 @@ function calculateSegmentTime(distance, elevationGain, elevationLoss, settings) 
   
   // Calculate time for each component: t = d/v
   
-  // 1. Flat distance time (horizontal movement)
-  const flatDistance = distanceMeters - validElevationGain - validElevationLoss;
-  if (flatDistance > 0) {
-    const flatTime = flatDistance / flatSpeed; // Time in hours
+  // 1. Flat distance time (total horizontal distance)
+  if (distanceMeters > 0) {
+    const flatTime = distanceMeters / flatSpeed; // Time in hours
     totalTime += flatTime;
   }
   

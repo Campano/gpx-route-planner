@@ -549,3 +549,16 @@ button {
   @apply text-foreground scale-110;
 }
 
+/* Settings panel styling */
+.settings-section {
+  @apply p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700;
+}
+
+.settings-section-title {
+  @apply text-base font-semibold mb-4 text-foreground;
+}
+
+.settings-input {
+  @apply mt-1 bg-background;
+}
+

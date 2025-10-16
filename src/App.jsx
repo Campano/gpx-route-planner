@@ -29,13 +29,13 @@ function App() {
       activityModes: {
         hiking: {
       ascentSpeed: 300, // m/h (meters per hour)
-      descentSpeed: 400, // m/h
-      flatSpeed: 5000, // m/h (5 km/h = 5000 m/h)
+          descentSpeed: 500, // m/h
+          flatSpeed: 4000, // m/h (4 km/h = 4000 m/h)
         },
         snowshoes: {
-          ascentSpeed: 200, // m/h
-          descentSpeed: 300, // m/h
-          flatSpeed: 3000, // m/h (3 km/h = 3000 m/h)
+          ascentSpeed: 300, // m/h
+          descentSpeed: 500, // m/h
+          flatSpeed: 4000, // m/h (4 km/h = 4000 m/h)
         },
         skiTouring: {
           ascentSpeed: 400, // m/h
@@ -55,7 +55,20 @@ function App() {
   const [editingRest, setEditingRest] = useState(null)
   const [language, setLanguage] = useState(() => {
     const saved = localStorage.getItem('mountain-route-planner-language')
-    return saved || 'en'
+    if (saved) return saved
+    
+    // Detect user's preferred language from browser
+    const browserLang = navigator.language || navigator.languages?.[0] || 'en'
+    const langCode = browserLang.split('-')[0] // Get language code (e.g., 'fr' from 'fr-FR')
+    
+    // Check if browser language is supported
+    const supportedLanguages = ['en', 'fr', 'es', 'ca']
+    if (supportedLanguages.includes(langCode)) {
+      return langCode
+    }
+    
+    // Default to English if no supported language detected
+    return 'en'
   })
   const [isDragOver, setIsDragOver] = useState(false)
   const [showNewRoute, setShowNewRoute] = useState(false)
@@ -487,7 +500,7 @@ function App() {
   // Export to PDF
   const handleExportPDF = () => {
     if (!selectedRoute) {
-      alert('Please select a route to export')
+      alert(t('pleaseSelectRoute'))
       return
     }
     exportRouteToPDF(selectedRoute, settings, language)
@@ -496,7 +509,7 @@ function App() {
   // Export to CSV
   const handleExportCSV = () => {
     if (!selectedRoute) {
-      alert('Please select a route to export')
+      alert(t('pleaseSelectRoute'))
       return
     }
 
@@ -513,7 +526,7 @@ function App() {
 
     // CSV headers with units
     const headers = [
-      'Waypoint',
+      t('waypointHeader'),
       'Position_UTM',
       'Position_Elevation_m',
       'Segment_Ascent_m',
@@ -528,8 +541,8 @@ function App() {
       'Rest_min',
       'Total_Time',
       'Progression_percent',
-      'Time',
-      'Notes',
+      t('timeHeader'),
+      t('notesHeader'),
       'Decision_Point'
     ];
 
@@ -560,7 +573,7 @@ function App() {
           '0%',
         wp.hour || '',
         wp.comments || '',
-        wp.isDecisionPoint ? 'Yes' : 'No'
+        wp.isDecisionPoint ? t('yes') : t('no')
       ];
     });
 
@@ -700,7 +713,7 @@ function App() {
               size="sm"
               className="btn-primary"
               onClick={() => handlePanelToggle('route-manager')}
-              title={showRouteManager ? "Hide route manager" : "Show route manager"}
+              title={showRouteManager ? t("hideRouteManager") : t("showRouteManager")}
             >
               {showRouteManager ? (
                 <>
@@ -719,7 +732,7 @@ function App() {
             size="sm"
             className="btn-primary"
               onClick={() => handlePanelToggle('general-settings')}
-              title={showSettings ? "Hide settings" : "Show settings"}
+              title={showSettings ? t("hideSettings") : t("showSettings")}
             >
               {showSettings ? (
                 <>
@@ -738,7 +751,7 @@ function App() {
             size="sm"
             className="btn-primary"
             onClick={() => handlePanelToggle('help')}
-            title={showHelp ? "Hide help" : "Show help"}
+            title={showHelp ? t("hideHelp") : t("showHelp")}
           >
             {showHelp ? (
               <>
@@ -757,7 +770,7 @@ function App() {
             size="sm"
             className="btn-donate"
             onClick={() => window.open('https://github.com/sponsors/Campano', '_blank')}
-            title="Donate to keep the project alive"
+            title={t("donateToKeep")}
           >
             <Heart className="w-4 h-4 mr-2 heartbeat-icon" />
             {t('donate')}
@@ -795,16 +808,16 @@ function App() {
                               }
                             }}
                             className="text-lg font-semibold border-none p-0 h-auto bg-transparent focus:ring-0"
-                            placeholder="Route name"
+                            placeholder={t("routeName")}
                             autoFocus
                           />
                         ) : (
                           <div className="flex items-center gap-2">
-                            <span className="text-lg font-semibold">{selectedRoute.name || 'Unnamed Route'}</span>
+                            <span className="text-lg font-semibold">{selectedRoute.name || t('unnamedRoute')}</span>
                             <button
                               onClick={() => setEditingRouteName(true)}
                               className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                              title="Edit route name"
+                              title={t("editRouteName")}
                             >
                               <Edit3 className="w-3 h-3" />
                             </button>
@@ -1280,6 +1293,9 @@ function App() {
               {/* Add Route Section */}
               <div className="mt-6">
                 <h3 className="text-sm font-semibold mb-3">{t('addRouteTitle')}</h3>
+                <p className="text-xs text-muted-foreground mb-4">
+                  {t('gpxFileExplanation')}
+                </p>
                 <div
                   className="border-2 border-dashed border-border rounded-lg p-6 text-center cursor-pointer transition-all duration-200 hover:border-primary hover:bg-gray-50"
                   onDragEnter={handleDragEnter}
@@ -1340,9 +1356,11 @@ function App() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
-                {/* Language Selector */}
-                <div className="mb-6">
+            <CardContent className="space-y-6">
+                {/* App Settings */}
+                <div className="settings-section">
+                  <h3 className="settings-section-title">{t('appSettings')}</h3>
+                  <div>
                   <label className="text-sm font-medium mb-2 block">{t('language')}</label>
                   <div className="relative">
                     <select
@@ -1359,77 +1377,45 @@ function App() {
                     </select>
                   </div>
                 </div>
-                
-                {/* Activity Mode and Speed Settings */}
-                <div className="mb-6">
-                  <h4 className="text-sm font-medium mb-4">Speeds</h4>
+                    </div>
+
+                {/* Default Route Settings */}
+                <div className="settings-section">
+                  <h3 className="settings-section-title">{t('defaultRouteConfiguration')}</h3>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    {t('defaultValuesExplanation')}
+                  </p>
                   
-                  {/* Activity Mode Selector */}
+                  {/* Start Time */}
                   <div className="mb-4">
-                    <div className="relative">
-                      <select
-                        value={settings.activityMode}
-                        onChange={(e) => updateDefaultSettings('activityMode', e.target.value)}
-                        className="appearance-none bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent w-full"
-                        title="Select activity mode"
-                      >
-                        <option value="hiking">🥾 {t('hiking')}</option>
-                        <option value="snowshoes">❄️ {t('snowshoes')}</option>
-                        <option value="skiTouring">🎿 {t('skiTouring')}</option>
-                      </select>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Default speeds for new routes (m/h)
-                    </p>
-                  </div>
-                  
-                  {/* Speed Settings in 3 columns */}
-                  <div className="grid grid-cols-3 gap-3">
-                <div>
-                      <label className="text-xs text-muted-foreground">Ascent</label>
-                            <Input
-                        type="number"
-                        value={getCurrentSpeeds().ascentSpeed}
-                        onChange={(e) => updateDefaultSettings('ascentSpeed', parseFloat(e.target.value))}
-                        step="10"
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground">Descent</label>
-                            <Input
-                              type="number"
-                        value={getCurrentSpeeds().descentSpeed}
-                              onChange={(e) => updateDefaultSettings('descentSpeed', parseFloat(e.target.value))}
-                              step="10"
-                              className="mt-1"
-                            />
-                    </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground">Flat</label>
-                            <Input
-                              type="number"
-                        value={getCurrentSpeeds().flatSpeed}
-                              onChange={(e) => updateDefaultSettings('flatSpeed', parseFloat(e.target.value))}
-                              step="100"
-                              className="mt-1"
-                            />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Other Settings */}
-                <div className="grid grid-cols-1 gap-4">
-                        <div>
                           <label className="text-sm font-medium">{t('startTime')}</label>
                             <Input
                             type="time"
                             value={settings.startTime}
                             onChange={(e) => updateDefaultSettings('startTime', e.target.value)}
-                            className="mt-1"
+                      className="settings-input"
                           />
                         </div>
-                        <div>
+
+                  {/* Safety Time */}
+                  <div className="mb-4">
+                    <label className="text-sm font-medium">{t('safetyTime')}</label>
+                    <Input
+                      type="number"
+                      value={settings.safetyTimePercentage}
+                      onChange={(e) => updateDefaultSettings('safetyTimePercentage', parseFloat(e.target.value) || 0)}
+                      step="1"
+                      min="0"
+                      max="100"
+                      className="settings-input"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {t('additionalTimeBuffer')}
+                    </p>
+                  </div>
+
+                  {/* Distance Calculation Method */}
+                  <div className="mb-4">
                           <label className="text-sm font-medium">{t('distanceCalculation')}</label>
                           <select
                             value={settings.distanceCalculationMethod}
@@ -1446,22 +1432,65 @@ function App() {
                             }
                           </p>
                         </div>
+
+                  {/* Activity Mode and Speed Settings */}
                         <div>
-                          <label className="text-sm font-medium">{t('safetyTime')}</label>
+                    <h4 className="text-sm font-medium mb-4">{t('speeds')}</h4>
+                    
+                    {/* Activity Mode Selector */}
+                    <div className="mb-4">
+                      <div className="relative">
+                        <select
+                          value={settings.activityMode}
+                          onChange={(e) => updateDefaultSettings('activityMode', e.target.value)}
+                          className="appearance-none bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent w-full"
+                          title="Select activity mode"
+                        >
+                          <option value="hiking">🥾 {t('hiking')}</option>
+                          <option value="snowshoes">❄️ {t('snowshoes')}</option>
+                          <option value="skiTouring">🎿 {t('skiTouring')}</option>
+                        </select>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Default speeds for new routes (m/h)
+                      </p>
+                    </div>
+                    
+                    {/* Speed Settings in 3 columns */}
+                    <div className="grid grid-cols-3 gap-3">
+                    <div>
+                        <label className="text-xs text-muted-foreground">Ascent</label>
                           <Input
                             type="number"
-                            value={settings.safetyTimePercentage}
-                            onChange={(e) => updateDefaultSettings('safetyTimePercentage', parseFloat(e.target.value) || 0)}
-                            step="1"
-                            min="0"
-                            max="100"
-                            className="mt-1"
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Additional time buffer as percentage of total route time
-                          </p>
+                        value={getCurrentSpeeds().ascentSpeed}
+                        onChange={(e) => updateDefaultSettings('ascentSpeed', parseFloat(e.target.value))}
+                        step="10"
+                        className="settings-input"
+                      />
                         </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Descent</label>
+                      <Input
+                        type="number"
+                        value={getCurrentSpeeds().descentSpeed}
+                        onChange={(e) => updateDefaultSettings('descentSpeed', parseFloat(e.target.value))}
+                        step="10"
+                        className="settings-input"
+                      />
                   </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Flat</label>
+                      <Input
+                        type="number"
+                        value={getCurrentSpeeds().flatSpeed}
+                        onChange={(e) => updateDefaultSettings('flatSpeed', parseFloat(e.target.value))}
+                        step="100"
+                        className="settings-input"
+                      />
+                    </div>
+                    </div>
+                  </div>
+                </div>
                 
                 {/* Clean All Data Button */}
                 <div className="pt-4 border-t border-border">
@@ -1500,138 +1529,23 @@ function App() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* {t('routeSpecificSettings')} */}
-                <div className="p-4 bg-muted/30 rounded-lg">
+                {/* Route Settings */}
+                <div className="settings-section">
+                  
+                  {/* Start Time */}
                   <div className="mb-4">
-                    <h4 className="text-sm font-medium">{t('routeSpecificSettings')}</h4>
-                  </div>
-                  
-                  {/* Activity Mode and Speed Settings */}
-                  <div className="mb-6">
-                    <h4 className="text-sm font-medium mb-4">Speeds</h4>
-                    
-                    {/* Activity Mode Selector */}
-                    <div className="mb-4">
-                      <div className="relative">
-                        <select
-                          value={getEffectiveSettings(selectedRoute).activityMode || settings.activityMode}
-                          onChange={(e) => {
-                            const currentMode = getEffectiveSettings(selectedRoute).activityMode || settings.activityMode
-                            if (e.target.value !== currentMode) {
-                              handleActivityModeChange(e.target.value)
-                            }
-                          }}
-                          className="appearance-none bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent w-full"
-                          title="Select activity mode for this route"
-                        >
-                          <option value="hiking">🥾 {t('hiking')}</option>
-                          <option value="snowshoes">❄️ {t('snowshoes')}</option>
-                          <option value="skiTouring">🎿 {t('skiTouring')}</option>
-                        </select>
-                        {activityModeChangePending && (
-                          <div className="absolute left-0 top-0 -translate-y-full -translate-x-2 mb-2 p-4 bg-white border border-gray-200 text-gray-700 text-xs rounded-lg shadow-lg z-10 w-80">
-                            <div className="whitespace-normal mb-3">
-                              {t('activityModeChangeMessage')}
-                            </div>
-                            <div className="flex gap-2 justify-end">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                                className="h-6 px-2 text-xs bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  cancelActivityModeChange()
-                                }}
-                              >
-                                {t('cancel')}
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-6 px-2 text-xs btn-primary"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  confirmActivityModeChange()
-                                }}
-                              >
-                                <span className="mr-1">✅</span>
-                                {t('confirmActivityModeChange')}
-                    </Button>
-                  </div>
-                            <div className="absolute top-full left-6 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
-                            <div className="absolute top-full left-6 -mt-px w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-200"></div>
-                          </div>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Speeds for this route (m/h)
-                      </p>
-                    </div>
-                    
-                    {/* Speed Settings in 3 columns */}
-                    <div className="grid grid-cols-3 gap-3">
-                    <div>
-                        <label className="text-xs text-muted-foreground">Ascent</label>
-                      <Input
-                        type="number"
-                        value={getEffectiveSettings(selectedRoute).ascentSpeed}
-                        onChange={(e) => updateRouteSettings('ascentSpeed', parseFloat(e.target.value))}
-                        step="10"
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                        <label className="text-xs text-muted-foreground">Descent</label>
-                      <Input
-                        type="number"
-                        value={getEffectiveSettings(selectedRoute).descentSpeed}
-                        onChange={(e) => updateRouteSettings('descentSpeed', parseFloat(e.target.value))}
-                        step="10"
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                        <label className="text-xs text-muted-foreground">Flat</label>
-                      <Input
-                        type="number"
-                        value={getEffectiveSettings(selectedRoute).flatSpeed}
-                        onChange={(e) => updateRouteSettings('flatSpeed', parseFloat(e.target.value))}
-                        step="100"
-                        className="mt-1"
-                      />
-                    </div>
-                    </div>
-                  </div>
-                  
-                        <div>
-                        <div>
-                          <label className="text-sm font-medium">{t('startTime')}</label>
+                    <label className="text-sm font-medium">{t('startTime')}</label>
                           <Input
                             type="time"
                             value={getEffectiveSettings(selectedRoute).startTime}
                             onChange={(e) => updateRouteSettings('startTime', e.target.value)}
-                            className="mt-1"
+                      className="settings-input"
                           />
                         </div>
-                        <div>
-                          <label className="text-sm font-medium">{t('distanceCalculation')}</label>
-                          <select
-                            value={getEffectiveSettings(selectedRoute).distanceCalculationMethod}
-                            onChange={(e) => updateRouteSettings('distanceCalculationMethod', e.target.value)}
-                            className="mt-1 w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
-                          >
-                            <option value="track">{t('trackBased')}</option>
-                            <option value="waypoint-to-waypoint">{t('waypointToWaypoint')}</option>
-                          </select>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {getEffectiveSettings(selectedRoute).distanceCalculationMethod === 'track' 
-                              ? t('trackBasedDesc')
-                              : t('waypointToWaypointDesc')
-                            }
-                          </p>
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium">{t('safetyTimeLabel')}</label>
+
+                  {/* Safety Time */}
+                  <div className="mb-4">
+                    <label className="text-sm font-medium">{t('safetyTimeLabel')}</label>
                           <Input
                             type="number"
                             value={getEffectiveSettings(selectedRoute).safetyTimePercentage}
@@ -1639,12 +1553,131 @@ function App() {
                             step="1"
                             min="0"
                             max="100"
-                            className="mt-1"
+                      className="settings-input"
                           />
                           <p className="text-xs text-muted-foreground mt-1">
                             Additional time buffer as percentage of total route time
                           </p>
                         </div>
+
+                  {/* Distance Calculation Method */}
+                  <div className="mb-4">
+                    <label className="text-sm font-medium">{t('distanceCalculation')}</label>
+                    <select
+                      value={getEffectiveSettings(selectedRoute).distanceCalculationMethod}
+                      onChange={(e) => updateRouteSettings('distanceCalculationMethod', e.target.value)}
+                      className="settings-input w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+                    >
+                      <option value="track">{t('trackBased')}</option>
+                      <option value="waypoint-to-waypoint">{t('waypointToWaypoint')}</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {getEffectiveSettings(selectedRoute).distanceCalculationMethod === 'track' 
+                        ? t('trackBasedDesc')
+                        : t('waypointToWaypointDesc')
+                      }
+                    </p>
+                </div>
+                
+                  {/* Activity Mode and Speed Settings */}
+                <div>
+                    <h4 className="text-sm font-medium mb-4">{t('speeds')}</h4>
+                  
+                  {/* Activity Mode Selector */}
+                  <div className="mb-4">
+                    <div className="relative">
+                      <select
+                        value={getEffectiveSettings(selectedRoute).activityMode || settings.activityMode}
+                        onChange={(e) => {
+                          const currentMode = getEffectiveSettings(selectedRoute).activityMode || settings.activityMode
+                          if (e.target.value !== currentMode) {
+                            handleActivityModeChange(e.target.value)
+                          }
+                        }}
+                        className="appearance-none bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent w-full"
+                        title="Select activity mode for this route"
+                      >
+                        <option value="hiking">🥾 {t('hiking')}</option>
+                        <option value="snowshoes">❄️ {t('snowshoes')}</option>
+                        <option value="skiTouring">🎿 {t('skiTouring')}</option>
+                      </select>
+                      {activityModeChangePending && (
+                        <div className="absolute left-0 top-0 -translate-y-full -translate-x-2 mb-2 p-4 bg-white border border-gray-200 text-gray-700 text-xs rounded-lg shadow-lg z-10 w-80">
+                          <div className="whitespace-normal mb-3">
+                            {t('activityModeChangeMessage')}
+                      </div>
+                          <div className="flex gap-2 justify-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                              className="h-6 px-2 text-xs bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                cancelActivityModeChange()
+                              }}
+                            >
+                              {t('cancel')}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-6 px-2 text-xs btn-primary"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                confirmActivityModeChange()
+                              }}
+                            >
+                              <span className="mr-1">✅</span>
+                              {t('confirmActivityModeChange')}
+                  </Button>
+                    </div>
+                          <div className="absolute top-full left-6 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
+                          <div className="absolute top-full left-6 -mt-px w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-200"></div>
+                      </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Speeds for this route (m/h)
+                    </p>
+                      </div>
+                  
+                  {/* Speed Settings in 3 columns */}
+                  <div className="grid grid-cols-3 gap-3">
+                        <div>
+                      <label className="text-xs text-muted-foreground">Ascent</label>
+                    <Input
+                      type="number"
+                      value={getEffectiveSettings(selectedRoute).ascentSpeed}
+                      onChange={(e) => updateRouteSettings('ascentSpeed', parseFloat(e.target.value))}
+                      step="10"
+                      className="settings-input"
+                    />
+                        </div>
+                        <div>
+                      <label className="text-xs text-muted-foreground">Descent</label>
+                    <Input
+                      type="number"
+                      value={getEffectiveSettings(selectedRoute).descentSpeed}
+                      onChange={(e) => updateRouteSettings('descentSpeed', parseFloat(e.target.value))}
+                      step="10"
+                      className="settings-input"
+                    />
+                        </div>
+                        <div>
+                      <label className="text-xs text-muted-foreground">Flat</label>
+                    <Input
+                      type="number"
+                      value={getEffectiveSettings(selectedRoute).flatSpeed}
+                      onChange={(e) => updateRouteSettings('flatSpeed', parseFloat(e.target.value))}
+                      step="100"
+                      className="settings-input"
+                    />
+                          </div>
+                        </div>
+                        
+                        <p className="text-xs text-muted-foreground mt-3">
+                          {t('segmentTimeFormula')}
+                        </p>
                   </div>
                 </div>
                 

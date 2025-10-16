@@ -39,6 +39,7 @@ export const translations = {
     exportPDF: "Export PDF",
     addRoute: "New Route",
     addRouteTitle: "Add Route",
+    gpxFileExplanation: "For best results, upload a GPX file with a single track and waypoints along the track to define segments.",
     close: "Close",
     
     // Route Details
@@ -98,7 +99,7 @@ export const translations = {
     end: "End",
     
     // Warning
-    betaWarning: "Beta Version: Calculations may be unreliable and must be verified. Please report problems and suggestions on the",
+    betaWarning: "Calculations may be unreliable and must be verified. Please report problems and suggestions on the",
     issuesPage: "Github issues page",
     
     // Additional UI elements
@@ -172,12 +173,56 @@ export const translations = {
     activityModeChangeMessage: "Changing the activity mode will reset your custom speeds to the default values for this mode. Your custom speed modifications will be lost.",
     confirmActivityModeChange: "Confirm Activity Change",
     exportCSV: "Export CSV",
-    exportCSVDesc: "Export route data as CSV with units in headers",
+    exportCSVDesc: "Export to Excel for custom calculations and analysis",
     confirm: "Confirm",
     cancel: "Cancel",
     
     // Donation
     donate: "Donate",
+    
+    // App Settings
+    appSettings: "App Settings",
+    defaultRouteConfiguration: "Default Route Configuration", 
+    defaultValuesExplanation: "Default values for new routes. Can be overridden in individual route configuration.",
+    
+    // Speeds section
+    speeds: "Speeds",
+    segmentTimeFormula: "Segment time = (flat distance ÷ flat speed) + (ascent ÷ ascent speed) + (descent ÷ descent speed)",
+    speedsForThisRoute: "Speeds for this route (m/h)",
+    
+    // Tooltips and titles
+    hideRouteManager: "Hide route manager",
+    showRouteManager: "Show route manager",
+    hideSettings: "Hide settings", 
+    showSettings: "Show settings",
+    hideHelp: "Hide help",
+    showHelp: "Show help",
+    donateToKeep: "Donate to keep the project alive",
+    configureRoute: "Configure route-specific settings",
+    hideConfiguration: "Hide configuration",
+    closePanel: "Close panel",
+    selectLanguage: "Select language",
+    selectActivityMode: "Select activity mode",
+    selectActivityModeForRoute: "Select activity mode for this route",
+    editRouteName: "Edit route name",
+    routeName: "Route name",
+    unnamedRoute: "Unnamed Route",
+    pleaseSelectRoute: "Please select a route to export",
+    
+    // CSV headers
+    waypointHeader: "Waypoint",
+    timeHeader: "Time", 
+    notesHeader: "Notes",
+    yes: "Yes",
+    no: "No",
+    
+    // Distance calculation descriptions
+    usesActualTrack: "Uses actual track path for accurate distances",
+    usesStraightLine: "Uses straight-line distance between waypoints",
+    
+    // Export descriptions
+    exportToExcel: "Export to Excel for custom calculations and analysis",
+    additionalTimeBuffer: "Additional time buffer as percentage of total route time",
     donateDesc: "Support the development of this project",
     donateMessage: "If you find this tool useful, consider supporting its development. Your contribution helps keep the project alive and enables new features."
   },
@@ -218,6 +263,7 @@ export const translations = {
     exportPDF: "Exporter PDF",
     addRoute: "Nouvelle Route",
     addRouteTitle: "Ajouter Route",
+    gpxFileExplanation: "Pour de meilleurs résultats, téléchargez un fichier GPX avec une seule track et des waypoints le long de la track pour définir les segments.",
     close: "Fermer",
     
     // Route Details
@@ -277,7 +323,7 @@ export const translations = {
     end: "Arrivée",
     
     // Warning
-    betaWarning: "Version Bêta: Les calculs peuvent être peu fiables et doivent être vérifiés. Veuillez signaler les problèmes et suggestions sur la",
+    betaWarning: "Les calculs peuvent être peu fiables et doivent être vérifiés. Veuillez signaler les problèmes et suggestions sur la",
     issuesPage: "page des problèmes Github",
     
     // Additional UI elements
@@ -351,14 +397,58 @@ export const translations = {
     activityModeChangeMessage: "Changer le mode d'activité réinitialisera vos vitesses personnalisées aux valeurs par défaut pour ce mode. Vos modifications de vitesse personnalisées seront perdues.",
     confirmActivityModeChange: "Confirmer le Changement d'Activité",
     exportCSV: "Exporter CSV",
-    exportCSVDesc: "Exporter les données de route en CSV avec les unités dans les en-têtes",
+    exportCSVDesc: "Exporter vers Excel pour des calculs et analyses personnalisés",
     confirm: "Confirmer",
     cancel: "Annuler",
     
     // Donation
     donate: "Faire un don",
     donateDesc: "Soutenir le développement de ce projet",
-    donateMessage: "Si vous trouvez cet outil utile, envisagez de soutenir son développement. Votre contribution aide à maintenir le projet en vie et permet de nouvelles fonctionnalités."
+    donateMessage: "Si vous trouvez cet outil utile, envisagez de soutenir son développement. Votre contribution aide à maintenir le projet en vie et permet de nouvelles fonctionnalités.",
+    
+    // App Settings
+    appSettings: "Paramètres de l'Application",
+    defaultRouteConfiguration: "Configuration de Route par Défaut",
+    defaultValuesExplanation: "Valeurs par défaut pour les nouvelles routes. Peuvent être remplacées dans la configuration de route individuelle.",
+    
+    // Speeds section
+    speeds: "Vitesses",
+    segmentTimeFormula: "Temps de segment = (distance plate ÷ vitesse plate) + (montée ÷ vitesse montée) + (descente ÷ vitesse descente)",
+    speedsForThisRoute: "Vitesses pour cette route (m/h)",
+    
+    // Tooltips and titles
+    hideRouteManager: "Masquer le gestionnaire de routes",
+    showRouteManager: "Afficher le gestionnaire de routes",
+    hideSettings: "Masquer les paramètres",
+    showSettings: "Afficher les paramètres",
+    hideHelp: "Masquer l'aide",
+    showHelp: "Afficher l'aide",
+    donateToKeep: "Faire un don pour maintenir le projet en vie",
+    configureRoute: "Configurer les paramètres spécifiques à la route",
+    hideConfiguration: "Masquer la configuration",
+    closePanel: "Fermer le panneau",
+    selectLanguage: "Sélectionner la langue",
+    selectActivityMode: "Sélectionner le mode d'activité",
+    selectActivityModeForRoute: "Sélectionner le mode d'activité pour cette route",
+    editRouteName: "Modifier le nom de la route",
+    routeName: "Nom de la route",
+    unnamedRoute: "Route sans nom",
+    pleaseSelectRoute: "Veuillez sélectionner une route à exporter",
+    
+    // CSV headers
+    waypointHeader: "Point de Passage",
+    timeHeader: "Heure",
+    notesHeader: "Notes",
+    yes: "Oui",
+    no: "Non",
+    
+    // Distance calculation descriptions
+    usesActualTrack: "Utilise le chemin réel de la piste pour des distances précises",
+    usesStraightLine: "Utilise la distance en ligne droite entre les points de passage",
+    
+    // Export descriptions
+    exportToExcel: "Exporter vers Excel pour des calculs et analyses personnalisés",
+    additionalTimeBuffer: "Temps de sécurité supplémentaire en pourcentage du temps total de la route"
   },
   
   es: {
@@ -397,6 +487,7 @@ export const translations = {
     exportPDF: "Exportar PDF",
     addRoute: "Nueva Ruta",
     addRouteTitle: "Agregar Ruta",
+    gpxFileExplanation: "Para mejores resultados, sube un archivo GPX con una sola track y waypoints a lo largo de la track para definir segmentos.",
     close: "Cerrar",
     
     // Route Details
@@ -456,7 +547,7 @@ export const translations = {
     end: "Final",
     
     // Warning
-    betaWarning: "Versión Beta: Los cálculos pueden ser poco fiables y deben ser verificados. Por favor reporta problemas y sugerencias en la",
+    betaWarning: "Los cálculos pueden ser poco fiables y deben ser verificados. Por favor reporta problemas y sugerencias en la",
     issuesPage: "página de problemas de Github",
     
     // Additional UI elements
@@ -530,14 +621,58 @@ export const translations = {
     activityModeChangeMessage: "Cambiar el modo de actividad restablecerá tus velocidades personalizadas a los valores por defecto para este modo. Tus modificaciones de velocidad personalizadas se perderán.",
     confirmActivityModeChange: "Confirmar Cambio de Actividad",
     exportCSV: "Exportar CSV",
-    exportCSVDesc: "Exportar datos de ruta como CSV con unidades en los encabezados",
+    exportCSVDesc: "Exportar a Excel para cálculos y análisis personalizados",
     confirm: "Confirmar",
     cancel: "Cancelar",
     
     // Donation
     donate: "Donar",
     donateDesc: "Apoyar el desarrollo de este proyecto",
-    donateMessage: "Si encuentras útil esta herramienta, considera apoyar su desarrollo. Tu contribución ayuda a mantener el proyecto vivo y permite nuevas características."
+    donateMessage: "Si encuentras útil esta herramienta, considera apoyar su desarrollo. Tu contribución ayuda a mantener el proyecto vivo y permite nuevas características.",
+    
+    // App Settings
+    appSettings: "Configuración de la Aplicación",
+    defaultRouteConfiguration: "Configuración de Ruta por Defecto",
+    defaultValuesExplanation: "Valores por defecto para nuevas rutas. Se pueden sobrescribir en la configuración de ruta individual.",
+    
+    // Speeds section
+    speeds: "Velocidades",
+    segmentTimeFormula: "Tiempo de segmento = (distancia plana ÷ velocidad plana) + (ascenso ÷ velocidad ascenso) + (descenso ÷ velocidad descenso)",
+    speedsForThisRoute: "Velocidades para esta ruta (m/h)",
+    
+    // Tooltips and titles
+    hideRouteManager: "Ocultar gestor de rutas",
+    showRouteManager: "Mostrar gestor de rutas",
+    hideSettings: "Ocultar configuración",
+    showSettings: "Mostrar configuración",
+    hideHelp: "Ocultar ayuda",
+    showHelp: "Mostrar ayuda",
+    donateToKeep: "Donar para mantener el proyecto vivo",
+    configureRoute: "Configurar ajustes específicos de la ruta",
+    hideConfiguration: "Ocultar configuración",
+    closePanel: "Cerrar panel",
+    selectLanguage: "Seleccionar idioma",
+    selectActivityMode: "Seleccionar modo de actividad",
+    selectActivityModeForRoute: "Seleccionar modo de actividad para esta ruta",
+    editRouteName: "Editar nombre de ruta",
+    routeName: "Nombre de ruta",
+    unnamedRoute: "Ruta sin nombre",
+    pleaseSelectRoute: "Por favor selecciona una ruta para exportar",
+    
+    // CSV headers
+    waypointHeader: "Punto de Paso",
+    timeHeader: "Hora",
+    notesHeader: "Notas",
+    yes: "Sí",
+    no: "No",
+    
+    // Distance calculation descriptions
+    usesActualTrack: "Utiliza el camino real de la pista para distancias precisas",
+    usesStraightLine: "Utiliza la distancia en línea recta entre puntos de paso",
+    
+    // Export descriptions
+    exportToExcel: "Exportar a Excel para cálculos y análisis personalizados",
+    additionalTimeBuffer: "Tiempo de seguridad adicional como porcentaje del tiempo total de la ruta"
   },
   
   ca: {
@@ -576,6 +711,7 @@ export const translations = {
     exportPDF: "Exportar PDF",
     addRoute: "Nova Ruta",
     addRouteTitle: "Afegir Ruta",
+    gpxFileExplanation: "Per a millors resultats, puja un fitxer GPX amb una sola track i waypoints al llarg de la track per definir segments.",
     close: "Tancar",
     
     // Route Details
@@ -635,7 +771,7 @@ export const translations = {
     end: "Final",
     
     // Warning
-    betaWarning: "Versió Beta: Els càlculs poden ser poc fiables i han de ser verificats. Si us plau reporta problemes i suggeriments a la",
+    betaWarning: "Els càlculs poden ser poc fiables i han de ser verificats. Si us plau reporta problemes i suggeriments a la",
     issuesPage: "pàgina de problemes de Github",
     
     // Additional UI elements
@@ -709,14 +845,58 @@ export const translations = {
     activityModeChangeMessage: "Canviar el mode d'activitat restablirà les vostres velocitats personalitzades als valors per defecte per a aquest mode. Les vostres modificacions de velocitat personalitzades es perdran.",
     confirmActivityModeChange: "Confirmar Canvi d'Activitat",
     exportCSV: "Exportar CSV",
-    exportCSVDesc: "Exportar dades de ruta com CSV amb unitats als encapçalats",
+    exportCSVDesc: "Exportar a Excel per a càlculs i anàlisis personalitzats",
     confirm: "Confirmar",
     cancel: "Cancel·lar",
     
     // Donation
     donate: "Donar",
     donateDesc: "Suportar el desenvolupament d'aquest projecte",
-    donateMessage: "Si trobes útil aquesta eina, considera suportar-ne el desenvolupament. La teva contribució ajuda a mantenir el projecte viu i permet noves funcionalitats."
+    donateMessage: "Si trobes útil aquesta eina, considera suportar-ne el desenvolupament. La teva contribució ajuda a mantenir el projecte viu i permet noves funcionalitats.",
+    
+    // App Settings
+    appSettings: "Configuració de l'Aplicació",
+    defaultRouteConfiguration: "Configuració de Ruta per Defecte",
+    defaultValuesExplanation: "Valors per defecte per a noves rutes. Es poden sobreescriure en la configuració de ruta individual.",
+    
+    // Speeds section
+    speeds: "Velocitats",
+    segmentTimeFormula: "Temps de segment = (distància plana ÷ velocitat plana) + (pujada ÷ velocitat pujada) + (baixada ÷ velocitat baixada)",
+    speedsForThisRoute: "Velocitats per a aquesta ruta (m/h)",
+    
+    // Tooltips and titles
+    hideRouteManager: "Ocultar gestor de rutes",
+    showRouteManager: "Mostrar gestor de rutes",
+    hideSettings: "Ocultar configuració",
+    showSettings: "Mostrar configuració",
+    hideHelp: "Ocultar ajuda",
+    showHelp: "Mostrar ajuda",
+    donateToKeep: "Donar per mantenir el projecte viu",
+    configureRoute: "Configurar ajustos específics de la ruta",
+    hideConfiguration: "Ocultar configuració",
+    closePanel: "Tancar panell",
+    selectLanguage: "Seleccionar idioma",
+    selectActivityMode: "Seleccionar mode d'activitat",
+    selectActivityModeForRoute: "Seleccionar mode d'activitat per a aquesta ruta",
+    editRouteName: "Editar nom de ruta",
+    routeName: "Nom de ruta",
+    unnamedRoute: "Ruta sense nom",
+    pleaseSelectRoute: "Si us plau selecciona una ruta per exportar",
+    
+    // CSV headers
+    waypointHeader: "Punt de Pas",
+    timeHeader: "Hora",
+    notesHeader: "Notes",
+    yes: "Sí",
+    no: "No",
+    
+    // Distance calculation descriptions
+    usesActualTrack: "Utilitza el camí real de la pista per a distàncies precises",
+    usesStraightLine: "Utilitza la distància en línia recta entre punts de pas",
+    
+    // Export descriptions
+    exportToExcel: "Exportar a Excel per a càlculs i anàlisis personalitzats",
+    additionalTimeBuffer: "Temps de seguretat addicional com a percentatge del temps total de la ruta"
   }
 };
 
