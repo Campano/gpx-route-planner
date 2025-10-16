@@ -28,9 +28,9 @@ function App() {
       activityMode: 'hiking', // 'hiking', 'snowshoes', 'skiTouring'
       activityModes: {
         hiking: {
-          ascentSpeed: 300, // m/h (meters per hour)
-          descentSpeed: 400, // m/h
-          flatSpeed: 5000, // m/h (5 km/h = 5000 m/h)
+      ascentSpeed: 300, // m/h (meters per hour)
+      descentSpeed: 400, // m/h
+      flatSpeed: 5000, // m/h (5 km/h = 5000 m/h)
         },
         snowshoes: {
           ascentSpeed: 200, // m/h
@@ -61,6 +61,7 @@ function App() {
   const [showNewRoute, setShowNewRoute] = useState(false)
   const [showCleanDataDialog, setShowCleanDataDialog] = useState(false)
   const [routeConfirmingDelete, setRouteConfirmingDelete] = useState(null)
+  const [activityModeChangePending, setActivityModeChangePending] = useState(null)
   const dragCounterRef = useRef(0)
 
   // Translation helper
@@ -171,6 +172,21 @@ function App() {
     }
   }
 
+  // Check if route has custom speeds that differ from default mode speeds
+  const hasCustomSpeeds = (route) => {
+    if (!route?.settings) return false
+    
+    const currentMode = route.settings.activityMode || settings.activityMode
+    const defaultSpeeds = settings.activityModes[currentMode]
+    const routeSpeeds = route.settings
+    
+    return (
+      routeSpeeds.ascentSpeed !== defaultSpeeds.ascentSpeed ||
+      routeSpeeds.descentSpeed !== defaultSpeeds.descentSpeed ||
+      routeSpeeds.flatSpeed !== defaultSpeeds.flatSpeed
+    )
+  }
+
   // Update route metadata based on last waypoint
   const updateRouteMetadata = (route, waypoints) => {
     if (!waypoints || waypoints.length === 0) return route
@@ -202,6 +218,7 @@ function App() {
         id: `route-${Date.now()}`,
         name: parsed.metadata.name || file.name.replace('.gpx', ''),
         gpxData: parsed.gpxData,
+        gpxContent: content, // Store original GPX content as string for re-parsing
         waypoints: parsed.waypoints,
         metadata: parsed.metadata,
         settings: {
@@ -322,6 +339,29 @@ function App() {
     setRouteConfirmingDelete(null)
   }
 
+  // Handle activity mode change - show confirmation if custom speeds exist
+  const handleActivityModeChange = (newActivityMode) => {
+    if (hasCustomSpeeds(selectedRoute)) {
+      setActivityModeChangePending(newActivityMode)
+    } else {
+      // No custom speeds, change directly
+      updateRouteSettings('activityMode', newActivityMode)
+    }
+  }
+
+  // Confirm activity mode change
+  const confirmActivityModeChange = () => {
+    if (activityModeChangePending) {
+      updateRouteSettings('activityMode', activityModeChangePending)
+      setActivityModeChangePending(null)
+    }
+  }
+
+  // Cancel activity mode change
+  const cancelActivityModeChange = () => {
+    setActivityModeChangePending(null)
+  }
+
   // Update default settings
   const updateDefaultSettings = (field, value) => {
     let newSettings
@@ -348,7 +388,7 @@ function App() {
   }
 
   // Update route-specific settings
-  const updateRouteSettings = (field, value) => {
+  const updateRouteSettings = async (field, value) => {
     if (!selectedRoute) return
     
     let newRouteSettings = { 
@@ -367,6 +407,74 @@ function App() {
       }
     }
     
+    // If distance calculation method is changed, we need to reparse the GPX file
+    if (field === 'distanceCalculationMethod') {
+      try {
+        // Use the stored original GPX content if available, otherwise we can't reparse
+        if (!selectedRoute.gpxContent) {
+          alert('Cannot change distance calculation method for this route. Please reload the GPX file to enable this feature.')
+          return
+        }
+        
+        // Re-parse the GPX with new distance calculation method
+        const parsed = parseGPXFile(selectedRoute.gpxContent, newRouteSettings)
+        
+        // Merge new waypoints with existing waypoints to preserve user modifications
+        const mergedWaypoints = parsed.waypoints.map((newWaypoint, index) => {
+          // First try to find by same position (latitude/longitude)
+          let existingWaypoint = selectedRoute.waypoints.find(wp => 
+            Math.abs(wp.latitude - newWaypoint.latitude) < 0.0001 && 
+            Math.abs(wp.longitude - newWaypoint.longitude) < 0.0001
+          )
+          
+          // If not found by position, try by index as fallback
+          if (!existingWaypoint && selectedRoute.waypoints[index]) {
+            existingWaypoint = selectedRoute.waypoints[index]
+          }
+          
+          // If we found an existing waypoint, preserve user modifications
+          if (existingWaypoint) {
+            return {
+              ...newWaypoint, // Use new distance/time calculations from re-parsing
+              // Preserve user modifications
+              terrainDifficultyPenalty: existingWaypoint.terrainDifficultyPenalty,
+              stopDuration: existingWaypoint.stopDuration,
+              comments: existingWaypoint.comments,
+              isDecisionPoint: existingWaypoint.isDecisionPoint,
+              id: existingWaypoint.id, // Preserve existing ID to maintain stability
+              // Preserve user-modified name unless it's clearly auto-generated
+              name: existingWaypoint.name && 
+                    !existingWaypoint.name.match(/^(Waypoint|Point) \d+$/) ? 
+                    existingWaypoint.name : newWaypoint.name
+            }
+          }
+          
+          // No matching existing waypoint, use the new one as-is
+          return newWaypoint
+        })
+        
+        // Recalculate times with preserved penalties and rest times
+        const recalculatedWaypoints = recalculateWaypoints(mergedWaypoints, newRouteSettings)
+        
+        // Update metadata based on the recalculated waypoints
+        const updatedRouteWithWaypoints = { 
+          ...selectedRoute, 
+          waypoints: recalculatedWaypoints,
+          settings: newRouteSettings,
+          gpxData: parsed.gpxData
+        }
+        const updatedRoute = updateRouteMetadata(updatedRouteWithWaypoints, recalculatedWaypoints)
+    
+      setSelectedRoute(updatedRoute)
+      setRoutes(routes.map(r => r.id === updatedRoute.id ? updatedRoute : r))
+        return
+      } catch (error) {
+        console.error('Error re-parsing GPX with new distance method:', error)
+        alert(`Error updating distance calculation method: ${error.message}`)
+        return
+      }
+    }
+    
     const updatedRouteWithSettings = { ...selectedRoute, settings: newRouteSettings }
     const recalculated = recalculateWaypoints(updatedRouteWithSettings.waypoints, newRouteSettings)
     const updatedRouteWithWaypoints = { ...updatedRouteWithSettings, waypoints: recalculated }
@@ -374,7 +482,7 @@ function App() {
     
     setSelectedRoute(updatedRoute)
     setRoutes(routes.map(r => r.id === updatedRoute.id ? updatedRoute : r))
-    }
+  }
 
   // Export to PDF
   const handleExportPDF = () => {
@@ -665,9 +773,9 @@ function App() {
           <Card className="shadow-mountain-lg">
             {selectedRoute && (
               <>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
                       <CardTitle className="flex items-center gap-2">
                         {editingRouteName ? (
                           <Input
@@ -736,8 +844,8 @@ function App() {
                           }}
                         />
                       </div>
-                    </CardDescription>
-                    </div>
+                  </CardDescription>
+                </div>
                     <div className="flex flex-col sm:flex-row items-center gap-2">
                       <Button
                         variant="outline"
@@ -762,14 +870,14 @@ function App() {
                         <Download className="w-4 h-4 mr-2" />
                         {t('exportPDF')}
                       </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
               {selectedRoute ? (
                 <div className="space-y-6">
                   {/* Waypoint Table */}
-                  <div className="overflow-x-auto">
+                <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                           {/* Group Header Row */}
@@ -824,7 +932,7 @@ function App() {
                                     {waypoint.utm ? waypoint.utm.replace(/^Zone \d+ /, '') : 'N/A'}
                                   </div>
                                   <div className="font-medium">
-                                    {waypoint.elevation.toFixed(0)}m
+                                      {waypoint.elevation.toFixed(0)}m
                                   </div>
                                 </div>
                               </TableCell>
@@ -833,11 +941,11 @@ function App() {
                             {index === 0 ? (
                               <span className="text-muted-foreground">—</span>
                             ) : (
-                              <div className="space-y-1">
-                                <div className="text-green-600 font-medium">↑{waypoint.segmentAscent.toFixed(0)}m</div>
-                                <div className="text-red-600 font-medium">↓{waypoint.segmentDescent.toFixed(0)}m</div>
-                                <div className="text-blue-600 font-medium">{waypoint.segmentDistance.toFixed(2)}km</div>
-                              </div>
+                            <div className="space-y-1">
+                              <div className="text-green-600 font-medium">↑{waypoint.segmentAscent.toFixed(0)}m</div>
+                              <div className="text-red-600 font-medium">↓{waypoint.segmentDescent.toFixed(0)}m</div>
+                              <div className="text-blue-600 font-medium">{waypoint.segmentDistance.toFixed(2)}km</div>
+                            </div>
                             )}
                           </TableCell>
                           {/* Route Columns */}
@@ -863,8 +971,8 @@ function App() {
                             {index === 0 ? (
                               <span className="text-muted-foreground">—</span>
                             ) : editingPenalty === waypoint.id ? (
-                              <Input
-                                type="number"
+                <Input
+                  type="number"
                                 value={(waypoint.terrainDifficultyPenalty * 100).toFixed(0)}
                                 onChange={(e) => updateWaypoint(waypoint.id, 'terrainDifficultyPenalty', (parseFloat(e.target.value) || 0) / 100)}
                                 onBlur={() => setEditingPenalty(null)}
@@ -877,8 +985,8 @@ function App() {
                                   }
                                 }}
                                 onClick={(e) => e.stopPropagation()}
-                                step="0.1"
-                                className="h-8 text-xs w-20 text-center"
+                  step="0.1"
+                              className="h-8 text-xs w-20 text-center"
                                 autoFocus
                               />
                             ) : (
@@ -902,10 +1010,10 @@ function App() {
                             {index === 0 ? (
                               <span className="text-muted-foreground">—</span>
                             ) : editingRest === waypoint.id ? (
-                              <Input
-                                type="number"
-                                value={waypoint.stopDuration}
-                                onChange={(e) => updateWaypoint(waypoint.id, 'stopDuration', parseFloat(e.target.value) || 0)}
+                <Input
+                  type="number"
+                              value={waypoint.stopDuration}
+                              onChange={(e) => updateWaypoint(waypoint.id, 'stopDuration', parseFloat(e.target.value) || 0)}
                                 onBlur={() => setEditingRest(null)}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
@@ -916,7 +1024,7 @@ function App() {
                                   }
                                 }}
                                 onClick={(e) => e.stopPropagation()}
-                                className="h-8 text-xs w-20 text-center"
+                              className="h-8 text-xs w-20 text-center"
                                 autoFocus
                               />
                             ) : (
@@ -1038,9 +1146,9 @@ function App() {
                       </Button>
                     )}
                   </div>
-                </div>
+              </div>
               )}
-                </CardContent>
+            </CardContent>
               </>
             )}
             {!selectedRoute && (
@@ -1111,17 +1219,17 @@ function App() {
                         <span className="text-sm font-medium truncate">{route.name}</span>
                       </div>
                       <div className="relative">
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                      <Button
+                        variant="ghost"
+                        size="sm"
                           className={routeConfirmingDelete === route.id ? "btn-danger bg-red-100 border-red-300" : "btn-danger"}
-                          onClick={(e) => {
-                            e.stopPropagation()
+                        onClick={(e) => {
+                          e.stopPropagation()
                             handleDeleteRouteClick(route.id)
-                          }}
-                        >
+                        }}
+                      >
                           <Trash2 className="w-4 h-4" />
-                        </Button>
+                      </Button>
                         {routeConfirmingDelete === route.id && (
                           <div className="absolute right-0 top-0 -translate-y-full -translate-x-2 mb-2 p-4 bg-white border border-gray-200 text-gray-700 text-xs rounded-lg shadow-lg z-10 w-64">
                             <div className="whitespace-normal mb-3">
@@ -1277,9 +1385,9 @@ function App() {
                   
                   {/* Speed Settings in 3 columns */}
                   <div className="grid grid-cols-3 gap-3">
-                    <div>
+                <div>
                       <label className="text-xs text-muted-foreground">Ascent</label>
-                      <Input
+                            <Input
                         type="number"
                         value={getCurrentSpeeds().ascentSpeed}
                         onChange={(e) => updateDefaultSettings('ascentSpeed', parseFloat(e.target.value))}
@@ -1289,71 +1397,71 @@ function App() {
                     </div>
                     <div>
                       <label className="text-xs text-muted-foreground">Descent</label>
-                      <Input
-                        type="number"
+                            <Input
+                              type="number"
                         value={getCurrentSpeeds().descentSpeed}
-                        onChange={(e) => updateDefaultSettings('descentSpeed', parseFloat(e.target.value))}
-                        step="10"
-                        className="mt-1"
-                      />
+                              onChange={(e) => updateDefaultSettings('descentSpeed', parseFloat(e.target.value))}
+                              step="10"
+                              className="mt-1"
+                            />
                     </div>
                     <div>
                       <label className="text-xs text-muted-foreground">Flat</label>
-                      <Input
-                        type="number"
+                            <Input
+                              type="number"
                         value={getCurrentSpeeds().flatSpeed}
-                        onChange={(e) => updateDefaultSettings('flatSpeed', parseFloat(e.target.value))}
-                        step="100"
-                        className="mt-1"
-                      />
+                              onChange={(e) => updateDefaultSettings('flatSpeed', parseFloat(e.target.value))}
+                              step="100"
+                              className="mt-1"
+                            />
                     </div>
                   </div>
                 </div>
                 
                 {/* Other Settings */}
                 <div className="grid grid-cols-1 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">{t('startTime')}</label>
-                    <Input
-                      type="time"
-                      value={settings.startTime}
-                      onChange={(e) => updateDefaultSettings('startTime', e.target.value)}
-                      className="mt-1"
-                    />
+                        <div>
+                          <label className="text-sm font-medium">{t('startTime')}</label>
+                            <Input
+                            type="time"
+                            value={settings.startTime}
+                            onChange={(e) => updateDefaultSettings('startTime', e.target.value)}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">{t('distanceCalculation')}</label>
+                          <select
+                            value={settings.distanceCalculationMethod}
+                            onChange={(e) => updateDefaultSettings('distanceCalculationMethod', e.target.value)}
+                            className="mt-1 w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+                          >
+                            <option value="track">{t('trackBased')}</option>
+                            <option value="waypoint-to-waypoint">{t('waypointToWaypoint')}</option>
+                          </select>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {settings.distanceCalculationMethod === 'track' 
+                              ? 'Uses actual track path for accurate distances'
+                              : 'Uses straight-line distance between waypoints'
+                            }
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium">{t('safetyTime')}</label>
+                          <Input
+                            type="number"
+                            value={settings.safetyTimePercentage}
+                            onChange={(e) => updateDefaultSettings('safetyTimePercentage', parseFloat(e.target.value) || 0)}
+                            step="1"
+                            min="0"
+                            max="100"
+                            className="mt-1"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Additional time buffer as percentage of total route time
+                          </p>
+                        </div>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium">{t('distanceCalculation')}</label>
-                    <select
-                      value={settings.distanceCalculationMethod}
-                      onChange={(e) => updateDefaultSettings('distanceCalculationMethod', e.target.value)}
-                      className="mt-1 w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
-                    >
-                      <option value="track">{t('trackBased')}</option>
-                      <option value="waypoint-to-waypoint">{t('waypointToWaypoint')}</option>
-                    </select>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {settings.distanceCalculationMethod === 'track' 
-                        ? 'Uses actual track path for accurate distances'
-                        : 'Uses straight-line distance between waypoints'
-                      }
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">{t('safetyTime')}</label>
-                    <Input
-                      type="number"
-                      value={settings.safetyTimePercentage}
-                      onChange={(e) => updateDefaultSettings('safetyTimePercentage', parseFloat(e.target.value) || 0)}
-                      step="1"
-                      min="0"
-                      max="100"
-                      className="mt-1"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Additional time buffer as percentage of total route time
-                    </p>
-                  </div>
-                </div>
                 
                 {/* Clean All Data Button */}
                 <div className="pt-4 border-t border-border">
@@ -1378,10 +1486,7 @@ function App() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>{t('routeSettings')}</CardTitle>
-                    <CardDescription>
-                      {t('routeSettingsDesc').replace('{routeName}', selectedRoute.name)}
-                    </CardDescription>
+                    <CardTitle>{t('routeConfiguration')}</CardTitle>
                   </div>
                   <Button
                     variant="outline"
@@ -1410,7 +1515,12 @@ function App() {
                       <div className="relative">
                         <select
                           value={getEffectiveSettings(selectedRoute).activityMode || settings.activityMode}
-                          onChange={(e) => updateRouteSettings('activityMode', e.target.value)}
+                          onChange={(e) => {
+                            const currentMode = getEffectiveSettings(selectedRoute).activityMode || settings.activityMode
+                            if (e.target.value !== currentMode) {
+                              handleActivityModeChange(e.target.value)
+                            }
+                          }}
                           className="appearance-none bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent w-full"
                           title="Select activity mode for this route"
                         >
@@ -1418,6 +1528,40 @@ function App() {
                           <option value="snowshoes">❄️ {t('snowshoes')}</option>
                           <option value="skiTouring">🎿 {t('skiTouring')}</option>
                         </select>
+                        {activityModeChangePending && (
+                          <div className="absolute left-0 top-0 -translate-y-full -translate-x-2 mb-2 p-4 bg-white border border-gray-200 text-gray-700 text-xs rounded-lg shadow-lg z-10 w-80">
+                            <div className="whitespace-normal mb-3">
+                              {t('activityModeChangeMessage')}
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                                className="h-6 px-2 text-xs bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  cancelActivityModeChange()
+                                }}
+                              >
+                                {t('cancel')}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 px-2 text-xs btn-primary"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  confirmActivityModeChange()
+                                }}
+                              >
+                                <span className="mr-1">✅</span>
+                                {t('confirmActivityModeChange')}
+                    </Button>
+                  </div>
+                            <div className="absolute top-full left-6 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
+                            <div className="absolute top-full left-6 -mt-px w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-200"></div>
+                          </div>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground mt-2">
                         Speeds for this route (m/h)
@@ -1426,40 +1570,40 @@ function App() {
                     
                     {/* Speed Settings in 3 columns */}
                     <div className="grid grid-cols-3 gap-3">
-                      <div>
+                    <div>
                         <label className="text-xs text-muted-foreground">Ascent</label>
-                        <Input
-                          type="number"
-                          value={getEffectiveSettings(selectedRoute).ascentSpeed}
-                          onChange={(e) => updateRouteSettings('ascentSpeed', parseFloat(e.target.value))}
-                          step="10"
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
+                      <Input
+                        type="number"
+                        value={getEffectiveSettings(selectedRoute).ascentSpeed}
+                        onChange={(e) => updateRouteSettings('ascentSpeed', parseFloat(e.target.value))}
+                        step="10"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
                         <label className="text-xs text-muted-foreground">Descent</label>
-                        <Input
-                          type="number"
-                          value={getEffectiveSettings(selectedRoute).descentSpeed}
-                          onChange={(e) => updateRouteSettings('descentSpeed', parseFloat(e.target.value))}
-                          step="10"
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
+                      <Input
+                        type="number"
+                        value={getEffectiveSettings(selectedRoute).descentSpeed}
+                        onChange={(e) => updateRouteSettings('descentSpeed', parseFloat(e.target.value))}
+                        step="10"
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
                         <label className="text-xs text-muted-foreground">Flat</label>
-                        <Input
-                          type="number"
-                          value={getEffectiveSettings(selectedRoute).flatSpeed}
-                          onChange={(e) => updateRouteSettings('flatSpeed', parseFloat(e.target.value))}
-                          step="100"
-                          className="mt-1"
-                        />
-                      </div>
+                      <Input
+                        type="number"
+                        value={getEffectiveSettings(selectedRoute).flatSpeed}
+                        onChange={(e) => updateRouteSettings('flatSpeed', parseFloat(e.target.value))}
+                        step="100"
+                        className="mt-1"
+                      />
+                    </div>
                     </div>
                   </div>
                   
-                  <div>
+                        <div>
                         <div>
                           <label className="text-sm font-medium">{t('startTime')}</label>
                           <Input
