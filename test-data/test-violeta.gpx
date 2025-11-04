@@ -1,0 +1,291 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<gpx creator="CompeGPS" version="1.1" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd http://www.garmin.com/xmlschemas/WaypointExtension/v1 http://www8.garmin.com/xmlschemas/WaypointExtensionv1.xsd http://www.garmin.com/xmlschemas/TrackPointExtension/v1 http://www.garmin.com/xmlschemas/TrackPointExtensionv1.xsd http://www.garmin.com/xmlschemas/GpxExtensions/v3 http://www8.garmin.com/xmlschemas/GpxExtensionsv3.xsd http://www.garmin.com/xmlschemas/ActivityExtension/v1 http://www8.garmin.com/xmlschemas/ActivityExtensionv1.xsd http://www.garmin.com/xmlschemas/AdventuresExtensions/v1 http://www8.garmin.com/xmlschemas/AdventuresExtensionv1.xsd http://www.garmin.com/xmlschemas/PressureExtension/v1 http://www.garmin.com/xmlschemas/PressureExtensionv1.xsd http://www.garmin.com/xmlschemas/TripExtensions/v1 http://www.garmin.com/xmlschemas/TripExtensionsv1.xsd http://www.garmin.com/xmlschemas/TripMetaDataExtensions/v1 http://www.garmin.com/xmlschemas/TripMetaDataExtensionsv1.xsd http://www.garmin.com/xmlschemas/ViaPointTransportationModeExtensions/v1 http://www.garmin.com/xmlschemas/ViaPointTransportationModeExtensionsv1.xsd http://www.garmin.com/xmlschemas/CreationTimeExtension/v1 http://www.garmin.com/xmlschemas/CreationTimeExtensionsv1.xsd http://www.garmin.com/xmlschemas/AccelerationExtension/v1 http://www.garmin.com/xmlschemas/AccelerationExtensionv1.xsd http://www.garmin.com/xmlschemas/PowerExtension/v1 http://www.garmin.com/xmlschemas/PowerExtensionv1.xsd http://www.garmin.com/xmlschemas/VideoExtension/v1 http://www.garmin.com/xmlschemas/VideoExtensionv1.xsd" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:wptx1="http://www.garmin.com/xmlschemas/WaypointExtension/v1" xmlns:gpxtrx="http://www.garmin.com/xmlschemas/GpxExtensions/v3" xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1" xmlns:gpxx="http://www.garmin.com/xmlschemas/GpxExtensions/v3" xmlns:trp="http://www.garmin.com/xmlschemas/TripExtensions/v1" xmlns:adv="http://www.garmin.com/xmlschemas/AdventuresExtensions/v1" xmlns:prs="http://www.garmin.com/xmlschemas/PressureExtension/v1" xmlns:tmd="http://www.garmin.com/xmlschemas/TripMetaDataExtensions/v1" xmlns:vptm="http://www.garmin.com/xmlschemas/ViaPointTransportationModeExtensions/v1" xmlns:ctx="http://www.garmin.com/xmlschemas/CreationTimeExtension/v1" xmlns:gpxacc="http://www.garmin.com/xmlschemas/AccelerationExtension/v1" xmlns:gpxpx="http://www.garmin.com/xmlschemas/PowerExtension/v1" xmlns:vidx1="http://www.garmin.com/xmlschemas/VideoExtension/v1" xmlns:twonav="http://twonav.com/twonav">
+  <metadata>
+    <author>
+      <email id="" domain=""/>
+    </author>
+    <copyright author="">
+      <license></license>
+    </copyright>
+    <link href="http://www.compegps.com">
+      <text>CompeGPS TEAM, SL</text>
+    </link>
+    <time>2024-02-28T03:32:15.000Z</time>
+    <bounds maxlat="42.685604" maxlon="1.218968" minlat="42.668655" minlon="1.170591"/>
+  </metadata>
+  <trk>
+    <name>Dia 1_Refugi de la Pleta-Refugi de la Gola</name>
+    <extensions>
+      <line xmlns="http://www.topografix.com/GPX/gpx_style/0/2">
+        <width>2</width>
+      </line>
+      <gpxx:TrackExtension>
+        <gpxx:DisplayColor>Green</gpxx:DisplayColor>
+      </gpxx:TrackExtension>
+      <twonav:TwoNavExtension>
+        <twonav:activity>4</twonav:activity>
+        <twonav:terrain>0</twonav:terrain>
+      </twonav:TwoNavExtension>
+    </extensions>
+    <trkseg>
+      <trkpt lat="42.678004" lon="1.218815">
+        <ele>1734.6</ele>
+        <time>2024-02-27T19:52:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.677583" lon="1.218968">
+        <ele>1736.6</ele>
+        <time>2024-02-27T19:56:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.677264" lon="1.218544">
+        <ele>1751.2</ele>
+        <time>2024-02-27T20:00:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.675601" lon="1.217115">
+        <ele>1807.4</ele>
+        <time>2024-02-27T20:18:55.000Z</time>
+      </trkpt>
+      <trkpt lat="42.674708" lon="1.215128">
+        <ele>1850.0</ele>
+        <time>2024-02-27T20:35:35.000Z</time>
+      </trkpt>
+      <trkpt lat="42.674450" lon="1.213727">
+        <ele>1865.0</ele>
+        <time>2024-02-27T20:45:35.000Z</time>
+        <cmt>Punto Crítico</cmt>
+        <sym>attention</sym>
+      </trkpt>
+      <trkpt lat="42.674257" lon="1.213364">
+        <ele>1879.3</ele>
+        <time>2024-02-27T20:48:55.000Z</time>
+      </trkpt>
+      <trkpt lat="42.673570" lon="1.212906">
+        <ele>1891.7</ele>
+        <time>2024-02-27T20:56:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.672114" lon="1.212408">
+        <ele>1945.4</ele>
+        <time>2024-02-27T21:10:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.671538" lon="1.211673">
+        <ele>1980.0</ele>
+        <time>2024-02-27T21:17:35.000Z</time>
+      </trkpt>
+      <trkpt lat="42.671288" lon="1.210355">
+        <ele>2009.9</ele>
+        <time>2024-02-27T21:27:35.000Z</time>
+      </trkpt>
+      <trkpt lat="42.671356" lon="1.209157">
+        <ele>2034.1</ele>
+        <time>2024-02-27T21:36:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.671531" lon="1.208791">
+        <ele>2045.2</ele>
+        <time>2024-02-27T21:39:35.000Z</time>
+      </trkpt>
+      <trkpt lat="42.672214" lon="1.208395">
+        <ele>2066.1</ele>
+        <time>2024-02-27T21:46:55.000Z</time>
+      </trkpt>
+      <trkpt lat="42.672557" lon="1.207347">
+        <ele>2101.9</ele>
+        <time>2024-02-27T21:54:55.000Z</time>
+      </trkpt>
+      <trkpt lat="42.672631" lon="1.201139">
+        <ele>2183.6</ele>
+        <time>2024-02-27T22:40:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.672389" lon="1.200357">
+        <ele>2202.8</ele>
+        <time>2024-02-27T22:46:15.000Z</time>
+        <cmt>Punto Crítico</cmt>
+        <sym>attention</sym>
+      </trkpt>
+      <trkpt lat="42.671889" lon="1.199444">
+        <ele>2230.5</ele>
+        <time>2024-02-27T22:54:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.671131" lon="1.199076">
+        <ele>2249.6</ele>
+        <time>2024-02-27T23:02:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.670034" lon="1.197860">
+        <ele>2303.2</ele>
+        <time>2024-02-27T23:15:35.000Z</time>
+      </trkpt>
+      <trkpt lat="42.669896" lon="1.197267">
+        <ele>2320.3</ele>
+        <time>2024-02-27T23:19:35.000Z</time>
+      </trkpt>
+      <trkpt lat="42.669700" lon="1.197200">
+        <ele>2320.8</ele>
+        <time>2024-02-27T23:21:35.000Z</time>
+      </trkpt>
+      <trkpt lat="42.669085" lon="1.197448">
+        <ele>2320.4</ele>
+        <time>2024-02-27T23:26:55.000Z</time>
+      </trkpt>
+      <trkpt lat="42.668851" lon="1.197395">
+        <ele>2322.2</ele>
+        <time>2024-02-27T23:29:35.000Z</time>
+        <cmt>Estany de Mascarida</cmt>
+        <sym>river</sym>
+      </trkpt>
+      <trkpt lat="42.668673" lon="1.196831">
+        <ele>2320.7</ele>
+        <time>2024-02-27T23:34:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.668655" lon="1.196003">
+        <ele>2322.6</ele>
+        <time>2024-02-27T23:40:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.668896" lon="1.194641">
+        <ele>2343.4</ele>
+        <time>2024-02-27T23:50:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.669438" lon="1.193929">
+        <ele>2379.4</ele>
+        <time>2024-02-27T23:57:35.000Z</time>
+      </trkpt>
+      <trkpt lat="42.669688" lon="1.193879">
+        <ele>2383.4</ele>
+        <time>2024-02-27T23:59:35.000Z</time>
+      </trkpt>
+      <trkpt lat="42.669850" lon="1.192657">
+        <ele>2408.2</ele>
+        <time>2024-02-28T00:08:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.670562" lon="1.191959">
+        <ele>2407.8</ele>
+        <time>2024-02-28T00:16:55.000Z</time>
+      </trkpt>
+      <trkpt lat="42.671157" lon="1.191812">
+        <ele>2419.9</ele>
+        <time>2024-02-28T00:22:55.000Z</time>
+      </trkpt>
+      <trkpt lat="42.671875" lon="1.189719">
+        <ele>2472.4</ele>
+        <time>2024-02-28T00:38:55.000Z</time>
+      </trkpt>
+      <trkpt lat="42.672140" lon="1.189428">
+        <ele>2479.8</ele>
+        <time>2024-02-28T00:42:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.672865" lon="1.189498">
+        <ele>2487.3</ele>
+        <time>2024-02-28T00:48:55.000Z</time>
+      </trkpt>
+      <trkpt lat="42.673431" lon="1.189853">
+        <ele>2498.2</ele>
+        <time>2024-02-28T00:54:55.000Z</time>
+      </trkpt>
+      <trkpt lat="42.673804" lon="1.190495">
+        <ele>2500.1</ele>
+        <time>2024-02-28T01:00:55.000Z</time>
+      </trkpt>
+      <trkpt lat="42.674995" lon="1.191631">
+        <ele>2527.4</ele>
+        <time>2024-02-28T01:15:35.000Z</time>
+      </trkpt>
+      <trkpt lat="42.675456" lon="1.192827">
+        <ele>2549.0</ele>
+        <time>2024-02-28T01:24:55.000Z</time>
+      </trkpt>
+      <trkpt lat="42.675729" lon="1.193049">
+        <ele>2558.7</ele>
+        <time>2024-02-28T01:28:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.676449" lon="1.192624">
+        <ele>2586.3</ele>
+        <time>2024-02-28T01:35:35.000Z</time>
+      </trkpt>
+      <trkpt lat="42.676731" lon="1.192603">
+        <ele>2596.3</ele>
+        <time>2024-02-28T01:38:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.676940" lon="1.191934">
+        <ele>2613.7</ele>
+        <time>2024-02-28T01:43:35.000Z</time>
+      </trkpt>
+      <trkpt lat="42.678057" lon="1.192084">
+        <ele>2638.0</ele>
+        <time>2024-02-28T01:54:15.000Z</time>
+        <cmt>Pic de la Coma del Forn</cmt>
+        <sym>lowmountain</sym>
+      </trkpt>
+      <trkpt lat="42.680174" lon="1.190152">
+        <ele>2590.0</ele>
+        <time>2024-02-28T02:17:35.000Z</time>
+      </trkpt>
+      <trkpt lat="42.680516" lon="1.190021">
+        <ele>2565.9</ele>
+        <time>2024-02-28T02:20:55.000Z</time>
+      </trkpt>
+      <trkpt lat="42.681180" lon="1.190090">
+        <ele>2529.0</ele>
+        <time>2024-02-28T02:27:35.000Z</time>
+      </trkpt>
+      <trkpt lat="42.681433" lon="1.189898">
+        <ele>2516.7</ele>
+        <time>2024-02-28T02:30:15.000Z</time>
+        <cmt>Coll de Tres Estanys</cmt>
+        <sym>nav_bifuraction_left</sym>
+      </trkpt>
+      <trkpt lat="42.681740" lon="1.187083">
+        <ele>2435.4</ele>
+        <time>2024-02-28T02:50:55.000Z</time>
+      </trkpt>
+      <trkpt lat="42.681735" lon="1.185076">
+        <ele>2420.0</ele>
+        <time>2024-02-28T03:05:35.000Z</time>
+      </trkpt>
+      <trkpt lat="42.681243" lon="1.183764">
+        <ele>2420.0</ele>
+        <time>2024-02-28T03:16:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.680680" lon="1.183299">
+        <ele>2412.7</ele>
+        <time>2024-02-28T03:22:55.000Z</time>
+      </trkpt>
+      <trkpt lat="42.682841" lon="1.181239">
+        <ele>2437.3</ele>
+        <time>2024-02-28T03:24:55.000Z</time>
+      </trkpt>
+      <trkpt lat="42.683410" lon="1.179399">
+        <ele>2442.0</ele>
+        <time>2024-02-28T03:25:35.000Z</time>
+      </trkpt>
+      <trkpt lat="42.684851" lon="1.176578">
+        <ele>2349.7</ele>
+        <time>2024-02-28T03:26:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.684931" lon="1.174880">
+        <ele>2318.7</ele>
+        <time>2024-02-28T03:26:55.000Z</time>
+      </trkpt>
+      <trkpt lat="42.685604" lon="1.173603">
+        <ele>2260.7</ele>
+        <time>2024-02-28T03:27:35.000Z</time>
+        <cmt>Estany de la Gola</cmt>
+        <sym>river</sym>
+      </trkpt>
+      <trkpt lat="42.684784" lon="1.172589">
+        <ele>2259.4</ele>
+        <time>2024-02-28T03:28:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.682402" lon="1.170846">
+        <ele>2246.0</ele>
+        <time>2024-02-28T03:28:55.000Z</time>
+      </trkpt>
+      <trkpt lat="42.681015" lon="1.170591">
+        <ele>2191.0</ele>
+        <time>2024-02-28T03:30:15.000Z</time>
+      </trkpt>
+      <trkpt lat="42.681220" lon="1.171236">
+        <ele>2212.0</ele>
+        <time>2024-02-28T03:32:15.000Z</time>
+        <cmt>Refugi de la Gola</cmt>
+        <sym>smallhouse</sym>
+      </trkpt>
+    </trkseg>
+  </trk>
+</gpx>

@@ -227,7 +227,11 @@ export function parseGPXFile(gpxContent, settings) {
     
     // Extract tracks and waypoints
     const tracks = parsedGPX.tracks || [];
-    const gpxWaypoints = parsedGPX.waypoints || [];
+    let gpxWaypoints = parsedGPX.waypoints || [];
+    
+    // Debug logging to understand browser differences
+    console.log('[GPX Parser] Tracks:', tracks.length);
+    console.log('[GPX Parser] Waypoints from parser:', gpxWaypoints.length);
     
     if (tracks.length === 0) {
       throw new Error('No tracks found in GPX file');
@@ -236,9 +240,116 @@ export function parseGPXFile(gpxContent, settings) {
     const track = tracks[0];
     const trackPoints = track.points || [];
     
+    console.log('[GPX Parser] Track points:', trackPoints.length);
+    
     if (trackPoints.length === 0) {
       throw new Error('No points found in track');
     }
+    
+    // Normalize waypoints: Extract track points with names/comments as waypoints
+    // This ensures consistent behavior across browsers
+    // Some parsers may extract these as waypoints, others may not
+    // We use manual XML parsing for consistency across browsers
+    let trackPointWaypoints = [];
+    try {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(gpxContent, 'text/xml');
+      
+      // Check for XML parsing errors
+      const parserError = xmlDoc.querySelector('parsererror');
+      if (parserError) {
+        throw new Error('XML parsing error: ' + parserError.textContent);
+      }
+      
+      // Handle namespaces - GPX files use xmlns="http://www.topografix.com/GPX/1/1"
+      const gpxNamespace = 'http://www.topografix.com/GPX/1/1';
+      let trkpts;
+      
+      // Try namespace-aware query first, fallback to simple query
+      if (xmlDoc.getElementsByTagNameNS) {
+        trkpts = xmlDoc.getElementsByTagNameNS(gpxNamespace, 'trkpt');
+      } else {
+        trkpts = xmlDoc.getElementsByTagName('trkpt');
+      }
+      
+      // Helper function to get element by tag name with namespace support
+      const getElement = (parent, tagName) => {
+        if (xmlDoc.getElementsByTagNameNS) {
+          const elements = parent.getElementsByTagNameNS(gpxNamespace, tagName);
+          return elements.length > 0 ? elements[0] : null;
+        } else {
+          const elements = parent.getElementsByTagName(tagName);
+          return elements.length > 0 ? elements[0] : null;
+        }
+      };
+      
+      for (let i = 0; i < trkpts.length; i++) {
+        const trkpt = trkpts[i];
+        const lat = parseFloat(trkpt.getAttribute('lat'));
+        const lon = parseFloat(trkpt.getAttribute('lon'));
+        
+        if (isNaN(lat) || isNaN(lon)) continue;
+        
+        const nameEl = getElement(trkpt, 'name');
+        const cmtEl = getElement(trkpt, 'cmt');
+        const eleEl = getElement(trkpt, 'ele');
+        const symEl = getElement(trkpt, 'sym');
+        
+        const name = nameEl ? nameEl.textContent.trim() : null;
+        const comment = cmtEl ? cmtEl.textContent.trim() : null;
+        const elevation = eleEl ? parseFloat(eleEl.textContent) : null;
+        const symbol = symEl ? symEl.textContent.trim() : null;
+        
+        // Create waypoint if it has a name or comment (marker point)
+        if (name || comment) {
+          trackPointWaypoints.push({
+            latitude: lat,
+            longitude: lon,
+            elevation: !isNaN(elevation) ? elevation : 0,
+            name: name || comment || 'Waypoint',
+            comment: comment || name || '',
+            symbol: symbol || null
+          });
+        }
+      }
+      console.log('[GPX Parser] Extracted waypoints from track points (XML):', trackPointWaypoints.length);
+    } catch (xmlError) {
+      console.warn('[GPX Parser] Failed to parse XML for waypoints, using parser data:', xmlError);
+      // Fallback to parsed data if XML parsing fails
+      trackPointWaypoints = trackPoints
+        .filter(tp => {
+          const hasName = tp.name || (tp.extensions && tp.extensions.name);
+          const hasComment = tp.comment || tp.cmt || (tp.extensions && tp.extensions.comment);
+          return (hasName && String(hasName).trim()) || (hasComment && String(hasComment).trim());
+        })
+        .map(tp => ({
+          latitude: tp.latitude,
+          longitude: tp.longitude,
+          elevation: tp.elevation,
+          name: tp.name || tp.comment || tp.cmt || (tp.extensions && tp.extensions.name) || 'Waypoint',
+          comment: tp.comment || tp.cmt || tp.name || (tp.extensions && tp.extensions.comment) || '',
+          symbol: tp.symbol || tp.sym || (tp.extensions && tp.extensions.symbol) || null
+        }));
+    }
+    
+    // If parser found waypoints, use them; otherwise use track point waypoints
+    // But filter out any duplicates (same lat/lon within 1 meter)
+    const allWaypoints = [...gpxWaypoints];
+    trackPointWaypoints.forEach(tpWpt => {
+      const isDuplicate = allWaypoints.some(wpt => {
+        const distance = calculateDistance(
+          tpWpt.latitude, tpWpt.longitude,
+          wpt.latitude, wpt.longitude
+        ) * 1000; // Convert to meters
+        return distance < 1; // Within 1 meter = duplicate
+      });
+      if (!isDuplicate) {
+        allWaypoints.push(tpWpt);
+      }
+    });
+    
+    gpxWaypoints = allWaypoints;
+    console.log('[GPX Parser] Normalized waypoints (after extracting from track points):', gpxWaypoints.length);
     
     // Check distance calculation method
     const distanceMethod = settings.distanceCalculationMethod || 'track';
