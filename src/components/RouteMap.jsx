@@ -1,0 +1,210 @@
+import { useMemo, useEffect } from 'react'
+import { MapContainer, TileLayer, Polyline, Marker, Tooltip, useMapEvent, useMap } from 'react-leaflet'
+import L from 'leaflet'
+
+import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
+import markerIcon from 'leaflet/dist/images/marker-icon.png'
+import markerShadow from 'leaflet/dist/images/marker-shadow.png'
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow
+})
+
+L.Icon.Default.imagePath = ''
+
+const MapClickHandler = ({ onAddWaypoint }) => {
+  useMapEvent('click', (event) => {
+    if (!onAddWaypoint) return
+    onAddWaypoint({ lat: event.latlng.lat, lng: event.latlng.lng })
+  })
+  return null
+}
+
+// Component to handle map resize when container size changes
+const MapResizeHandler = ({ panelState }) => {
+  const map = useMap()
+  
+  // Handle panel state changes (opening/closing side panels)
+  useEffect(() => {
+    let timeoutId = null
+    
+    // Use requestAnimationFrame for smoother updates, then a small delay for DOM to settle
+    const frameId = requestAnimationFrame(() => {
+      timeoutId = setTimeout(() => {
+        map.invalidateSize()
+      }, 100)
+    })
+    
+    return () => {
+      cancelAnimationFrame(frameId)
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+    }
+  }, [map, panelState])
+  
+  // Also handle window resize events
+  useEffect(() => {
+    let resizeTimeout = null
+    
+    const handleResize = () => {
+      // Clear existing timeout to debounce resize events
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout)
+      }
+      
+      // Small delay to debounce resize events
+      resizeTimeout = setTimeout(() => {
+        map.invalidateSize()
+      }, 150)
+    }
+    
+    window.addEventListener('resize', handleResize)
+    
+    // Initial invalidate to ensure tiles load correctly on mount
+    map.invalidateSize()
+    
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout)
+      }
+    }
+  }, [map])
+  
+  return null
+}
+
+const RouteMap = ({ route, onAddWaypoint, onRemoveWaypoint, getWaypointDisplayName, panelState }) => {
+  const waypoints = route?.waypoints ?? []
+  const trackPoints = useMemo(() => {
+    return route?.gpxData?.tracks?.flatMap((track) => track.points ?? []) ?? []
+  }, [route])
+
+  const positions = useMemo(() => {
+    if (trackPoints.length > 1) {
+      return trackPoints
+        .filter((point) => typeof point.latitude === 'number' && typeof point.longitude === 'number')
+        .map((point) => [point.latitude, point.longitude])
+    }
+
+    return waypoints
+      .filter((wp) => typeof wp.latitude === 'number' && typeof wp.longitude === 'number')
+      .map((wp) => [wp.latitude, wp.longitude])
+  }, [trackPoints, waypoints])
+
+  const bounds = useMemo(() => {
+    if (positions.length < 2) return null
+    return L.latLngBounds(positions)
+  }, [positions])
+
+  if (positions.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        No geographic data available for this route.
+      </div>
+    )
+  }
+
+  return (
+    <MapContainer
+      key={route.id}
+      bounds={bounds ?? undefined}
+      center={bounds ? undefined : positions[0]}
+      zoom={13}
+      scrollWheelZoom
+      style={{ height: '100%', width: '100%', zIndex: 0 }}
+    >
+      <TileLayer
+        attribution='Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="https://srtm.csi.cgiar.org/">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)'
+        url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
+        maxZoom={17}
+      />
+
+      <MapClickHandler onAddWaypoint={onAddWaypoint} />
+      <MapResizeHandler panelState={panelState} />
+
+      {positions.length > 1 && (
+        <Polyline 
+          positions={positions} 
+          color="#2563eb" 
+          weight={4} 
+          opacity={0.8}
+          eventHandlers={{
+            add: (e) => {
+              // Bind tooltip once when polyline is added to map
+              const layer = e.target;
+              layer.bindTooltip('Click to add waypoint here', {
+                permanent: false,
+                direction: 'top',
+                offset: [0, -10],
+                className: 'leaflet-tooltip-custom',
+                sticky: true
+              });
+            },
+            mouseover: (e) => {
+              const layer = e.target;
+              layer.setStyle({
+                weight: 6,
+                opacity: 1
+              });
+              // Show tooltip at mouse position
+              layer.openTooltip(e.latlng);
+            },
+            mouseout: (e) => {
+              const layer = e.target;
+              layer.setStyle({
+                weight: 4,
+                opacity: 0.8
+              });
+              layer.closeTooltip();
+            }
+          }}
+        />
+      )}
+
+      {waypoints.map((wp) => {
+        if (typeof wp.latitude !== 'number' || typeof wp.longitude !== 'number') {
+          return null
+        }
+
+        const canRemove = !wp.isStartPoint && !wp.isEndPoint
+
+        const displayName = getWaypointDisplayName
+          ? getWaypointDisplayName(wp)
+          : wp.name || 'Waypoint'
+
+        return (
+          <Marker
+            key={wp.id}
+            position={[wp.latitude, wp.longitude]}
+            eventHandlers={
+              onRemoveWaypoint && canRemove
+                ? {
+                    click: () => onRemoveWaypoint(wp.id)
+                  }
+                : undefined
+            }
+          >
+            <Tooltip direction="top" offset={[0, -10]}>
+              <div className="space-y-1">
+                <div className="font-medium">{displayName}</div>
+                {wp.elevation != null && (
+                  <div className="text-xs">Elevation: {wp.elevation.toFixed(0)} m</div>
+                )}
+                <div className="text-[10px] text-muted-foreground">
+                  {canRemove ? 'Click to remove' : 'Fixed point'}
+                </div>
+              </div>
+            </Tooltip>
+          </Marker>
+        )
+      })}
+    </MapContainer>
+  )
+}
+
+export default RouteMap
+

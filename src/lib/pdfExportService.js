@@ -5,6 +5,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { translations } from './translations.js';
+import { getWaypointDisplayName } from './waypointUtils.js';
 
 /**
  * Export route to PDF
@@ -152,6 +153,7 @@ export function exportRouteToPDF(route, settings, language = 'en') {
   
   // Prepare table data matching the UI structure
   const tableData = route.waypoints.map((wp, index) => {
+    const displayName = getWaypointDisplayName(route, wp, t);
     // Handle penalty display with time in parentheses when non-null
     const penaltyDisplay = index === 0 
       ? '-' // Empty for first waypoint (using hyphen instead of em-dash)
@@ -160,7 +162,7 @@ export function exportRouteToPDF(route, settings, language = 'en') {
         : `${(wp.terrainDifficultyPenalty * 100).toFixed(0)}%`;
     
     return [
-      wp.isDecisionPoint ? `${wp.name}\n\n/!\\ DECISION POINT /!\\` : wp.name, // Waypoint column with prominent decision point indicator
+      wp.isDecisionPoint ? `${displayName}\n\n/!\\ DECISION POINT /!\\` : displayName, // Waypoint column with prominent decision point indicator
       `${wp.utm ? wp.utm.replace(/^Zone \d+ /, '') : 'N/A'}\n${wp.elevation.toFixed(0)}m`, // Position column with UTM coordinates and altitude
       // Empty cells for first waypoint's segment columns, data for others
       index === 0 ? '' : `+${wp.segmentAscent.toFixed(0)}m\n-${wp.segmentDescent.toFixed(0)}m\n${wp.segmentDistance.toFixed(2)}km`, // Segment column

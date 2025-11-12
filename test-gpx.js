@@ -1,7 +1,7 @@
 import { parseGPX } from '@we-gold/gpxjs';
 import fs from 'fs';
 
-const gpxContent = fs.readFileSync('/home/ubuntu/test-route.gpx', 'utf-8');
+const gpxContent = fs.readFileSync('/home/ubuntu/mont-blanc-ascent.gpx', 'utf-8');
 const [parsedGPX, error] = parseGPX(gpxContent);
 
 if (error) {
