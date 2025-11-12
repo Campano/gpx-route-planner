@@ -87,8 +87,8 @@ export function exportRouteToPDF(route, settings, language = 'en') {
     // Extract UTM zone
     const utmZones = [...new Set(route.waypoints.map(wp => {
       if (!wp.utm) return null;
-      const match = wp.utm.match(/Zone (\d+[A-Z])/);
-      return match ? match[1] : null;
+      const match = wp.utm.match(/Zone (\d+)([A-Z])/);
+      return match ? `UTM ${match[1]}${match[2]}` : null;
     }).filter(Boolean))];
     const utmZone = utmZones.length > 0 ? utmZones.join(', ') : 'N/A';
     
@@ -163,7 +163,7 @@ export function exportRouteToPDF(route, settings, language = 'en') {
     
     return [
       wp.isDecisionPoint ? `${displayName}\n\n/!\\ DECISION POINT /!\\` : displayName, // Waypoint column with prominent decision point indicator
-      `${wp.utm ? wp.utm.replace(/^Zone \d+ /, '') : 'N/A'}\n${wp.elevation.toFixed(0)}m`, // Position column with UTM coordinates and altitude
+      `${wp.utm ? wp.utm.replace(/^Zone \d+[A-Z] /, '') : 'N/A'}\n${wp.elevation.toFixed(0)}m`, // Position column with UTM coordinates (without zone) and altitude
       // Empty cells for first waypoint's segment columns, data for others
       index === 0 ? '' : `+${wp.segmentAscent.toFixed(0)}m\n-${wp.segmentDescent.toFixed(0)}m\n${wp.segmentDistance.toFixed(2)}km`, // Segment column
       // Route column always shows data
@@ -240,7 +240,7 @@ export function exportRouteToPDF(route, settings, language = 'en') {
     },
     columnStyles: {
       0: { cellWidth: 20, halign: 'center' }, // Waypoint
-      1: { cellWidth: 25, halign: 'center' }, // Position (UTM + altitude)
+      1: { cellWidth: 25, halign: 'center' }, // Position (UTM coordinates without zone + altitude)
       2: { cellWidth: 20, halign: 'center' }, // Segment
       3: { cellWidth: 20, halign: 'center' }, // Route
       4: { cellWidth: 18, halign: 'center' }, // Segment Time

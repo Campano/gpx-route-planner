@@ -4,6 +4,7 @@
  */
 
 import { parseGPX } from '@we-gold/gpxjs';
+import { fromLatLon } from 'utm';
 
 /**
  * Distance constants for GPX parsing and waypoint matching
@@ -226,18 +227,30 @@ function calculateTrackSegmentMetrics(trackPoints, startLatitude, startLongitude
 }
 
 /**
- * Convert latitude/longitude to UTM coordinates (simplified)
+ * Convert latitude/longitude to UTM coordinates using the utm library
  * @param {number} lat - Latitude
  * @param {number} lon - Longitude
- * @returns {string} UTM coordinates as string
+ * @returns {string} UTM coordinates as string in format "Zone XXL eastingE northingN"
  */
-function convertToUTM(lat, lon) {
-  // Simplified UTM conversion - in a real implementation, you'd use a proper UTM library
-  // For now, we'll create a simple representation
-  const zone = Math.floor((lon + 180) / 6) + 1;
-  const easting = Math.round((lon + 180) * 1000000) % 1000000;
-  const northing = Math.round((lat + 90) * 1000000) % 1000000;
-  return `Zone ${zone} ${easting.toFixed(0)}E ${northing.toFixed(0)}N`;
+export function convertToUTM(lat, lon) {
+  try {
+    // Use the utm library to convert lat/lon to UTM coordinates
+    const result = fromLatLon(lat, lon);
+    
+    // Format: Zone XXL eastingE northingN
+    // Round easting and northing to nearest integer
+    const easting = Math.round(result.easting);
+    const northing = Math.round(result.northing);
+    
+    return `Zone ${result.zoneNum}${result.zoneLetter} ${easting}E ${northing}N`;
+  } catch (error) {
+    // Fallback to simple zone calculation if conversion fails
+    console.warn('UTM conversion failed, using fallback:', error);
+    const zone = Math.floor((lon + 180) / 6) + 1;
+    const easting = Math.round((lon + 180) * 1000000) % 1000000;
+    const northing = Math.round((lat + 90) * 1000000) % 1000000;
+    return `Zone ${zone} ${easting.toFixed(0)}E ${northing.toFixed(0)}N`;
+  }
 }
 
 /**

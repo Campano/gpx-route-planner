@@ -1078,7 +1078,7 @@ function App() {
 
       return [
         displayName,
-        wp.utm ? wp.utm.replace(/^Zone \d+ /, '') : 'N/A',
+        wp.utm ? wp.utm.replace(/^Zone \d+[A-Z] /, '') : 'N/A',
         wp.elevation?.toFixed(0) || '0',
         index === 0 ? '' : (wp.segmentAscent?.toFixed(0) || '0'),
         index === 0 ? '' : (wp.segmentDescent?.toFixed(0) || '0'),
@@ -1369,8 +1369,8 @@ function App() {
                               const duration = formatTimeHoursMinutes(totalWithSafety);
                               const utmZones = [...new Set(selectedRoute.waypoints.map(wp => {
                                 if (!wp.utm) return null;
-                                const match = wp.utm.match(/Zone (\d+[A-Z])/);
-                                return match ? match[1] : null;
+                                const match = wp.utm.match(/Zone (\d+)([A-Z])/);
+                                return match ? `UTM ${match[1]}${match[2]}` : null;
                               }).filter(Boolean))];
                               const utmZone = utmZones.length > 0 ? utmZones.join(', ') : 'N/A';
                               const activityMode = getEffectiveSettings(selectedRoute).activityMode || settings.activityMode;
@@ -1568,7 +1568,7 @@ function App() {
                               <TableCell className="w-32">
                                 <div className="space-y-1 text-xs text-center">
                                   <div className="text-muted-foreground">
-                                    {waypoint.utm ? waypoint.utm.replace(/^Zone \d+ /, '') : 'N/A'}
+                                    {waypoint.utm ? waypoint.utm.replace(/^Zone \d+[A-Z] /, '') : 'N/A'}
                                   </div>
                                   <div className="font-medium">
                                       {waypoint.elevation.toFixed(0)}m

@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import { parseGPXFile } from './calculationService.js'
 import { checkWaypointModifications } from './gpxExportService.js'
+import { convertToUTM } from './gpxParser.js'
 
 const defaultSettings = {
   activityMode: 'hiking',
@@ -115,6 +116,56 @@ describe('parseGPXFile', () => {
     expect(modifications.renamed).toBe(0)
     expect(modifications.totalOriginal).toBeGreaterThan(0)
     expect(modifications.totalCurrent).toBe(modifications.totalOriginal)
+  })
+})
+
+describe('convertToUTM', () => {
+  it('converts latitude and longitude to UTM coordinates correctly', () => {
+    // Test case: Mont Blanc area coordinates
+    // Lat: 45.922265, Lon: 7.044640
+    // Expected: Zone 32T, 348381E, 5087270N
+    const lat = 45.922265
+    const lon = 7.044640
+    
+    const result = convertToUTM(lat, lon)
+    
+    // Check zone (32T)
+    expect(result).toMatch(/Zone 32T/)
+    
+    // Extract and verify coordinates
+    const eastingMatch = result.match(/(\d+)E/)
+    const northingMatch = result.match(/(\d+)N/)
+    
+    expect(eastingMatch).toBeTruthy()
+    expect(northingMatch).toBeTruthy()
+    
+    const easting = parseInt(eastingMatch[1], 10)
+    const northing = parseInt(northingMatch[1], 10)
+    
+    // Expected values: 348381E 5087270N
+    // Using the utm library for accurate coordinate conversion
+    expect(easting).toBe(348381)
+    expect(northing).toBe(5087270)
+  })
+  
+  it('calculates correct UTM zone number from longitude', () => {
+    // Zone 32 covers 6°E to 12°E
+    // 7.044640°E should be in zone 32
+    const lat = 45.922265
+    const lon = 7.044640
+    
+    const result = convertToUTM(lat, lon)
+    expect(result).toMatch(/Zone 32/)
+  })
+  
+  it('calculates correct UTM zone letter from latitude', () => {
+    // Zone T covers 40°N to 48°N
+    // 45.922265°N should be in zone T
+    const lat = 45.922265
+    const lon = 7.044640
+    
+    const result = convertToUTM(lat, lon)
+    expect(result).toMatch(/Zone \d+T/)
   })
 })
 
