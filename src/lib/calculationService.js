@@ -10,6 +10,7 @@ import {
   formatTimeHoursMinutesForMin,
   formatTotalTimeWithPercentage
 } from './timeCalculator.js'
+import { getRouteEndTime, normalizeRouteWaypoints } from './routeTableRows.js'
 
 /**
  * Parse GPX file and calculate all metrics (geometry + time)
@@ -22,12 +23,11 @@ export function parseGPXFile(gpxContent, settings) {
   const geometry = parseGPXGeometry(gpxContent, settings)
   
   // Add time calculations to waypoints
-  const waypointsWithTime = recalculateWaypointTimes(geometry.waypoints, settings)
-  
-  // Get total time from last waypoint
-  const totalTime = waypointsWithTime.length > 0 
-    ? waypointsWithTime[waypointsWithTime.length - 1].totalTime 
-    : 0
+  const normalized = normalizeRouteWaypoints(geometry.waypoints)
+  const waypointsWithTime = recalculateWaypointTimes(normalized, settings, {
+    processedTrackPoints: geometry.processedTrackPoints ?? null,
+  })
+  const totalTime = getRouteEndTime(waypointsWithTime)
   
   return {
     ...geometry,

@@ -4,8 +4,11 @@ import { Input } from '@/components/ui/input.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table.jsx'
-import { Upload, Mountain, Settings, Settings2, FileText, Trash2, Download, EyeOff, FolderOpen, Edit3, AlertTriangle, HelpCircle, X, Globe, Plus, Footprints, Snowflake, Zap, Heart, FileSpreadsheet, Info, AlertCircle, Clock, MapPin, FileDown } from 'lucide-react'
+import { Upload, Mountain, Settings2, FileText, Trash2, Download, EyeOff, Home, Edit3, AlertTriangle, X, OctagonPause, Footprints, Snowflake, Zap, Heart, FileSpreadsheet, Info, AlertCircle, Clock, MapPin, FileDown, CircleHelp, Route, Timer, Columns3 } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip.jsx'
 import { parseGPXFile, recalculateWaypoints, recalculateWaypointGeometry, formatTimeHoursMinutes, formatTimeHoursMinutesForMin, formatTotalTimeWithPercentage } from './lib/calculationService.js'
+import { parseGPXGeometry } from './lib/gpxParser.js'
 import { exportRouteToPDF } from './lib/pdfExportService.js'
 import { exportRouteToGPX, checkWaypointModifications } from './lib/gpxExportService.js'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog.jsx'
@@ -15,7 +18,30 @@ import GitHubCorner from './components/GitHubCorner.jsx'
 import RouteMap from './components/RouteMap.jsx'
 import packageJson from '../package.json'
 import { translations, languages } from './lib/translations.js'
-import { getWaypointDisplayName as buildWaypointDisplayName } from './lib/waypointUtils.js'
+import { TIME_CALCULATION_METHODS, DEFAULT_TIME_CALCULATION_METHOD } from './lib/timeCalculator.js'
+import {
+  getLegDescription as buildLegDescription,
+  getPointLabel as buildPointLabel,
+} from './lib/waypointUtils.js'
+import {
+  buildRouteTableRows,
+  createRestId,
+  getRestLabel,
+  getRouteEndTime,
+  getRowProgressionPercent,
+  getRowTimingMinutes,
+  normalizeRouteWaypoints,
+  normalizeWaypointRests,
+} from './lib/routeTableRows.js'
+import {
+  DEFAULT_ACTIVITY_MODE,
+  DEFAULT_APP_SETTINGS,
+  createDefaultRouteSettings,
+  getColumnVisibility,
+  getEffectiveRouteSettings,
+  getModeSpeeds,
+  loadAppSettings,
+} from './lib/routeDefaults.js'
 import 'leaflet/dist/leaflet.css'
 import './App.css'
 
@@ -151,48 +177,230 @@ const findInsertionDetails = (latitude, longitude, waypoints) => {
   }
 }
 
+function RouteConfigSection({ title, icon: Icon, children }) {
+  return (
+    <section className="route-config-section">
+      <h3 className="route-config-section__title">
+        <Icon className="w-3 h-3 shrink-0 text-muted-foreground" aria-hidden />
+        {title}
+      </h3>
+      <div className="route-config-section__body">{children}</div>
+    </section>
+  )
+}
+
+function RouteExportsPanel({
+  selectedRoute,
+  t,
+  onClose,
+  onExportGPX,
+  onExportPDF,
+  onExportCSV,
+}) {
+  return (
+    <Card className="route-config-panel shadow-mountain-lg text-[11px]">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold">{t('exports')}</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            className="btn-close h-7 w-7"
+            onClick={onClose}
+            title="Close panel"
+          >
+            <X className="w-3 h-3" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="group relative p-3 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
+                <Download className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <h4 className="text-[11px] font-medium text-foreground">{t('exportGPX')}</h4>
+                  {selectedRoute && (() => {
+                    const modifications = checkWaypointModifications(selectedRoute)
+                    if (modifications.modified) {
+                      const totalModifications =
+                        modifications.added + modifications.removed + modifications.renamed
+                      return (
+                        <Badge
+                          variant="outline"
+                          className="h-4 px-1 text-[9px] bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800"
+                        >
+                          {totalModifications}
+                        </Badge>
+                      )
+                    }
+                    return null
+                  })()}
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-snug">{t('exportGPXDesc')}</p>
+                {selectedRoute && (() => {
+                  const modifications = checkWaypointModifications(selectedRoute)
+                  if (modifications.modified) {
+                    const modificationDetails = []
+                    if (modifications.added > 0)
+                      modificationDetails.push(`${modifications.added} ${t('added')}`)
+                    if (modifications.removed > 0)
+                      modificationDetails.push(`${modifications.removed} ${t('removed')}`)
+                    if (modifications.renamed > 0)
+                      modificationDetails.push(`${modifications.renamed} ${t('renamed')}`)
+                    return (
+                      <p className="text-[10px] text-yellow-600 dark:text-yellow-400 mt-1 font-medium">
+                        {modificationDetails.join(', ')}
+                      </p>
+                    )
+                  }
+                  return null
+                })()}
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-shrink-0 h-7 text-[10px] px-2"
+              onClick={onExportGPX}
+              disabled={!selectedRoute}
+            >
+              <FileDown className="w-3 h-3 mr-1" />
+              {t('export')}
+            </Button>
+          </div>
+        </div>
+
+        <div className="group relative p-3 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
+                <FileText className="w-4 h-4 text-red-600 dark:text-red-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-[11px] font-medium text-foreground mb-0.5">{t('exportPDF')}</h4>
+                <p className="text-[10px] text-muted-foreground leading-snug">{t('exportPDFDesc')}</p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-shrink-0 h-7 text-[10px] px-2"
+              onClick={onExportPDF}
+              disabled={!selectedRoute}
+            >
+              <FileDown className="w-3 h-3 mr-1" />
+              {t('export')}
+            </Button>
+          </div>
+        </div>
+
+        <div className="group relative p-3 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
+                <FileSpreadsheet className="w-4 h-4 text-green-600 dark:text-green-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-[11px] font-medium text-foreground mb-0.5">{t('exportCSV')}</h4>
+                <p className="text-[10px] text-muted-foreground leading-snug">{t('exportCSVDesc')}</p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-shrink-0 h-7 text-[10px] px-2"
+              onClick={onExportCSV}
+              disabled={!selectedRoute}
+            >
+              <FileDown className="w-3 h-3 mr-1" />
+              {t('export')}
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function DistanceFormulaHelpTooltip({ t }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex text-muted-foreground hover:text-foreground"
+          aria-label={t('distanceFormulaHelpAria')}
+        >
+          <CircleHelp className="w-3 h-3" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        className="max-w-[260px] p-3 text-[11px] leading-snug text-left space-y-2.5"
+      >
+        <div>
+          <p className="font-semibold text-xs mb-0.5">{t('trackBased')}</p>
+          <p className="opacity-95">{t('trackBasedDesc')}</p>
+        </div>
+        <div className="border-t border-white/20 pt-2">
+          <p className="font-semibold text-xs mb-0.5">{t('waypointToWaypoint')}</p>
+          <p className="opacity-95">{t('waypointToWaypointDesc')}</p>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
+function TimeFormulaHelpTooltip({ t }) {
+  const formulaCodeClass =
+    'mt-1 rounded bg-black/25 px-2 py-1.5 font-mono text-[10px] leading-relaxed whitespace-pre-wrap border border-white/10'
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex text-muted-foreground hover:text-foreground"
+          aria-label={t('formulaHelpAria')}
+        >
+          <CircleHelp className="w-3 h-3" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        className="max-w-[300px] p-3 text-[11px] leading-snug text-left space-y-2.5"
+      >
+        <p className="opacity-90 text-[10px]">{t('timeFormulaHelpIntro')}</p>
+        <div>
+          <p className="font-semibold text-xs mb-0.5">{t('timeMethodAdditive')}</p>
+          <p className="opacity-95">{t('timeMethodAdditiveDesc')}</p>
+          <pre className={formulaCodeClass}>{t('segmentTimeFormulaAdditiveCode')}</pre>
+        </div>
+        <div className="border-t border-white/20 pt-2">
+          <p className="font-semibold text-xs mb-0.5">{t('timeMethodActivityBlend')}</p>
+          <p className="opacity-95">{t('timeMethodActivityBlendDesc')}</p>
+          <pre className={formulaCodeClass}>{t('segmentTimeFormulaActivityBlendCode')}</pre>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
 function App() {
   const [routes, setRoutes] = useState([])
   const [selectedRoute, setSelectedRoute] = useState(null)
-  const [settings, setSettings] = useState(() => {
-    const saved = localStorage.getItem('mountainSettings')
-    if (saved) {
-      try {
-        return JSON.parse(saved)
-      } catch (e) {
-        console.warn('Failed to parse saved settings, using defaults')
-      }
-    }
-    return {
-      activityMode: 'hiking', // 'hiking', 'snowshoes', 'skiTouring'
-      activityModes: {
-        hiking: {
-      ascentSpeed: 300, // m/h (meters per hour)
-          descentSpeed: 500, // m/h
-          flatSpeed: 4000, // m/h (4 km/h = 4000 m/h)
-        },
-        snowshoes: {
-          ascentSpeed: 300, // m/h
-          descentSpeed: 500, // m/h
-          flatSpeed: 4000, // m/h (4 km/h = 4000 m/h)
-        },
-        skiTouring: {
-          ascentSpeed: 400, // m/h
-          descentSpeed: 600, // m/h
-          flatSpeed: 4000, // m/h (4 km/h = 4000 m/h)
-        }
-      },
-      startTime: '08:00',
-      distanceCalculationMethod: 'track', // 'track' or 'waypoint-to-waypoint'
-      safetyTimePercentage: 20, // Safety time as percentage (20% = 20)
-      suppressWaypointModificationWarning: false // Whether to suppress waypoint modification warnings
-    }
-  })
-  const [activePanel, setActivePanel] = useState('route-manager') // 'route-manager', 'general-settings', 'route-settings', 'help', null
+  const [appSettings, setAppSettings] = useState(loadAppSettings)
+  const [activePanel, setActivePanel] = useState('home') // 'home', 'route-settings', 'route-exports', null
   const [editingWaypoint, setEditingWaypoint] = useState(null)
   const [editingRouteName, setEditingRouteName] = useState(false)
   const [editingPenalty, setEditingPenalty] = useState(null)
   const [editingRest, setEditingRest] = useState(null)
+  const [editingStartTime, setEditingStartTime] = useState(false)
+  const [editingSafetyTime, setEditingSafetyTime] = useState(false)
   const [editingWaypointName, setEditingWaypointName] = useState(null)
   const [editingWaypointNameValue, setEditingWaypointNameValue] = useState('')
   const [pendingEnterKey, setPendingEnterKey] = useState(false)
@@ -217,21 +425,16 @@ function App() {
   const [showNewRoute, setShowNewRoute] = useState(false)
   const [showCleanDataDialog, setShowCleanDataDialog] = useState(false)
   const [routeConfirmingDelete, setRouteConfirmingDelete] = useState(null)
-  const [activityModeChangePending, setActivityModeChangePending] = useState(null)
   const [showWaypointModificationWarning, setShowWaypointModificationWarning] = useState(false)
   const [waypointModificationAction, setWaypointModificationAction] = useState(null)
   const [suppressWarningCheckbox, setSuppressWarningCheckbox] = useState(false)
   const [showNoWaypointsAlert, setShowNoWaypointsAlert] = useState(false)
+  const [showAdvancedTrackOptions, setShowAdvancedTrackOptions] = useState(false)
   const dragCounterRef = useRef(0)
 
   // Translation helper
   const t = (key) => {
     return translations[language]?.[key] || translations.en[key] || key
-  }
-
-  // Get current speeds based on activity mode
-  const getCurrentSpeeds = () => {
-    return settings.activityModes[settings.activityMode]
   }
 
   // Get icon for activity mode
@@ -254,14 +457,22 @@ function App() {
   }, [language])
 
   // Panel visibility helpers
-  const showRouteManager = activePanel === 'route-manager'
-  const showSettings = activePanel === 'general-settings'
+  const isHomeView = activePanel === 'home' || !selectedRoute
   const showRouteSettings = activePanel === 'route-settings'
-  const showHelp = activePanel === 'help'
+  const showRouteExports = activePanel === 'route-exports'
+  const showRouteSidePanel = showRouteSettings || showRouteExports
 
-  // Simple panel toggle
   const handlePanelToggle = (panelType) => {
+    if (panelType === 'home') {
+      setActivePanel('home')
+      return
+    }
     setActivePanel(activePanel === panelType ? null : panelType)
+  }
+
+  const openRoute = (route) => {
+    setSelectedRoute(route)
+    setActivePanel(null)
   }
 
   // Calculate arrival time helper function
@@ -278,31 +489,41 @@ function App() {
     return `${arrivalHours}:${arrivalMinutes}`;
   }
 
-  // Load routes and settings from localStorage on mount
+  // Load routes from localStorage on mount
   useEffect(() => {
     const savedRoutes = localStorage.getItem('mountainRoutes')
-    const savedSettings = localStorage.getItem('mountainSettings')
     
     if (savedRoutes) {
       try {
         const parsedRoutes = JSON.parse(savedRoutes)
         // Ensure all routes have a log array (for backward compatibility)
-        const routesWithLog = parsedRoutes.map(route => ({
-          ...route,
-          log: route.log || []
-        }))
+        const routesWithLog = parsedRoutes.map((route) => {
+          const settings = getEffectiveRouteSettings(route)
+          let processedTrackPoints = route.processedTrackPoints ?? null
+          if (!processedTrackPoints && route.gpxContent && settings.distanceCalculationMethod !== 'waypoint-to-waypoint') {
+            try {
+              const geometry = parseGPXGeometry(route.gpxContent, settings)
+              processedTrackPoints = geometry.processedTrackPoints ?? null
+            } catch {
+              processedTrackPoints = null
+            }
+          }
+          const routeForTime = { ...route, processedTrackPoints }
+          const waypoints = recalculateWaypoints(
+            normalizeRouteWaypoints(route.waypoints || []),
+            settings,
+            getTimeRecalcOptions(routeForTime, settings),
+          )
+          return {
+            ...route,
+            processedTrackPoints,
+            log: route.log || [],
+            waypoints,
+          }
+        })
         setRoutes(routesWithLog)
       } catch (error) {
         console.error('Error loading routes from localStorage:', error)
-      }
-    }
-    
-    if (savedSettings) {
-      try {
-        const parsedSettings = JSON.parse(savedSettings)
-        setSettings(parsedSettings)
-      } catch (error) {
-        console.error('Error loading settings from localStorage:', error)
       }
     }
   }, [])
@@ -315,41 +536,18 @@ function App() {
   }, [routes])
 
 
-  // Save settings to localStorage whenever they change
+  // Save app preferences to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('mountainSettings', JSON.stringify(settings))
-  }, [settings])
+    localStorage.setItem('mountainSettings', JSON.stringify(appSettings))
+  }, [appSettings])
 
-  // Get effective settings for a route (route-specific or default)
-  const getEffectiveSettings = (route) => {
-    // If route has its own settings, use them directly
-    if (route?.settings) {
-      return route.settings
-    }
-    
-    // For routes without specific settings (legacy routes), use the global default speeds
-    const currentSpeeds = getCurrentSpeeds()
-    return {
-      ...settings,
-      ascentSpeed: currentSpeeds.ascentSpeed,
-      descentSpeed: currentSpeeds.descentSpeed,
-      flatSpeed: currentSpeeds.flatSpeed,
-    }
-  }
+  const getEffectiveSettings = getEffectiveRouteSettings
 
-  // Check if route has custom speeds that differ from default mode speeds
-  const hasCustomSpeeds = (route) => {
-    if (!route?.settings) return false
-    
-    const currentMode = route.settings.activityMode || settings.activityMode
-    const defaultSpeeds = settings.activityModes[currentMode]
-    const routeSpeeds = route.settings
-    
-    return (
-      routeSpeeds.ascentSpeed !== defaultSpeeds.ascentSpeed ||
-      routeSpeeds.descentSpeed !== defaultSpeeds.descentSpeed ||
-      routeSpeeds.flatSpeed !== defaultSpeeds.flatSpeed
-    )
+  const getTimeRecalcOptions = (route, settings) => {
+    if (settings?.distanceCalculationMethod === 'waypoint-to-waypoint') {
+      return {}
+    }
+    return { processedTrackPoints: route?.processedTrackPoints ?? null }
   }
 
   // Update route metadata based on last waypoint
@@ -377,7 +575,8 @@ function App() {
 
     try {
       const content = await file.text()
-      const parsed = parseGPXFile(content, settings)
+      const defaultRouteSettings = createDefaultRouteSettings()
+      const parsed = parseGPXFile(content, defaultRouteSettings)
       
       // Check if no waypoints were detected in the original GPX file
       const originalWaypoints = parsed.gpxData?.waypoints || [];
@@ -392,21 +591,15 @@ function App() {
         gpxContent: content, // Store original GPX content as string for re-parsing
         waypoints: parsed.waypoints,
         metadata: parsed.metadata,
+        processedTrackPoints: parsed.processedTrackPoints ?? null,
         log: parsed.log || [], // Include log from GPX parsing
-        settings: {
-          activityMode: settings.activityMode,
-          ascentSpeed: getCurrentSpeeds().ascentSpeed,
-          descentSpeed: getCurrentSpeeds().descentSpeed,
-          flatSpeed: getCurrentSpeeds().flatSpeed,
-          startTime: settings.startTime,
-          distanceCalculationMethod: settings.distanceCalculationMethod,
-          safetyTimePercentage: settings.safetyTimePercentage
-        },
+        settings: { ...defaultRouteSettings },
         createdAt: Date.now()
       }
       
       setRoutes(prevRoutes => [...prevRoutes, newRoute])
       setSelectedRoute(newRoute)
+      setActivePanel(null)
     } catch (error) {
       alert(`${t('errorParsingGPXFile')}: ${error.message}`)
     }
@@ -470,7 +663,7 @@ function App() {
     
     // For name changes, check if we need to show warning
     let shouldShowWarning = false;
-    if (isNameModification && !skipWarning && !settings.suppressWaypointModificationWarning) {
+    if (isNameModification && !skipWarning && !appSettings.suppressWaypointModificationWarning) {
       // Check if the name is actually changing
       const currentName = currentWaypoint?.name || '';
       const newName = (value || '').trim();
@@ -504,9 +697,13 @@ function App() {
     }
 
     // Recalculate times if penalty or stop duration changed
-    if (field === 'terrainDifficultyPenalty' || field === 'stopDuration') {
+    if (field === 'terrainDifficultyPenalty') {
       const effectiveSettings = getEffectiveSettings(selectedRoute)
-      const recalculated = recalculateWaypoints(updatedWaypoints, effectiveSettings)
+      const recalculated = recalculateWaypoints(
+        updatedWaypoints,
+        effectiveSettings,
+        getTimeRecalcOptions(selectedRoute, effectiveSettings),
+      )
       let updatedRouteWithWaypoints = { ...selectedRoute, waypoints: recalculated }
       
       // Add log entry if provided
@@ -585,9 +782,14 @@ function App() {
   const applyWaypointChanges = (updatedWaypoints, logEntry = null) => {
     if (!selectedRoute) return
 
-    const geometryUpdated = recalculateWaypointGeometry(updatedWaypoints)
+    const normalizedWaypoints = normalizeRouteWaypoints(updatedWaypoints)
+    const geometryUpdated = recalculateWaypointGeometry(normalizedWaypoints)
     const effectiveSettings = getEffectiveSettings(selectedRoute)
-    const recalculated = recalculateWaypoints(geometryUpdated, effectiveSettings)
+    const recalculated = recalculateWaypoints(
+      geometryUpdated,
+      effectiveSettings,
+      getTimeRecalcOptions(selectedRoute, effectiveSettings),
+    )
     let updatedRouteWithWaypoints = { ...selectedRoute, waypoints: recalculated }
     
     // Add log entry if provided
@@ -601,9 +803,45 @@ function App() {
     setRoutes(prevRoutes => prevRoutes.map((route) => (route.id === updatedRoute.id ? updatedRoute : route)))
   }
 
+  const addRestAtWaypoint = (waypointId) => {
+    if (!selectedRoute) return
+    const updatedWaypoints = selectedRoute.waypoints.map((wp) => {
+      if (wp.id !== waypointId) return wp
+      if ((wp.rests ?? []).length > 0) return wp
+      return {
+        ...wp,
+        rests: [{ id: createRestId(), durationMinutes: 15 }],
+      }
+    })
+    applyWaypointChanges(updatedWaypoints)
+  }
+
+  const removeRestAtWaypoint = (waypointId, restId) => {
+    if (!selectedRoute) return
+    const updatedWaypoints = selectedRoute.waypoints.map((wp) =>
+      wp.id === waypointId
+        ? { ...wp, rests: (wp.rests ?? []).filter((r) => r.id !== restId) }
+        : wp,
+    )
+    applyWaypointChanges(updatedWaypoints)
+  }
+
+  const updateRestDuration = (waypointId, restId, durationMinutes) => {
+    if (!selectedRoute) return
+    const updatedWaypoints = selectedRoute.waypoints.map((wp) => {
+      if (wp.id !== waypointId) return wp
+      return {
+        ...wp,
+        rests: (wp.rests ?? []).map((r) =>
+          r.id === restId ? { ...r, durationMinutes: Math.max(0, durationMinutes) } : r,
+        ),
+      }
+    })
+    applyWaypointChanges(updatedWaypoints)
+  }
 
   const showWaypointModificationWarningIfNeeded = (action) => {
-    if (settings.suppressWaypointModificationWarning) {
+    if (appSettings.suppressWaypointModificationWarning) {
       return true; // Skip warning, proceed with action
     }
     
@@ -616,9 +854,7 @@ function App() {
   const handleWaypointModificationConfirm = () => {
     if (suppressWarningCheckbox) {
       // Update settings to suppress future warnings
-      const newSettings = { ...settings, suppressWaypointModificationWarning: true };
-      setSettings(newSettings);
-      localStorage.setItem('mountainSettings', JSON.stringify(newSettings));
+      setAppSettings({ ...appSettings, suppressWaypointModificationWarning: true });
     }
     
     setShowWaypointModificationWarning(false);
@@ -718,7 +954,7 @@ function App() {
         longitude: snappedLng,
         elevation: defaultElevation,
         terrainDifficultyPenalty: 0,
-        stopDuration: 0,
+        rests: [],
         segmentDistance: 0,
         segmentAscent: 0,
         segmentDescent: 0,
@@ -788,14 +1024,42 @@ function App() {
     removeWaypoint();
   }
 
-  const getWaypointDisplayName = (waypoint) =>
-    buildWaypointDisplayName(selectedRoute, waypoint, t)
+  const getLegDescription = (waypointIndex) =>
+    buildLegDescription(selectedRoute, waypointIndex, t)
+
+  const getPointLabel = (waypoint) => buildPointLabel(selectedRoute, waypoint, t)
+
+  const getVisibleColumns = () =>
+    selectedRoute ? getColumnVisibility(getEffectiveSettings(selectedRoute)) : getColumnVisibility({})
+
+  const toggleColumnVisibility = (columnKey) => {
+    if (!selectedRoute) return
+    const current = getColumnVisibility(getEffectiveSettings(selectedRoute))
+    updateRouteSettings('columnVisibility', {
+      ...current,
+      [columnKey]: !current[columnKey],
+    })
+  }
+
+  const visibleColumns = getVisibleColumns()
+  const distanceGroupColSpan =
+    (visibleColumns.destinationCoords ? 1 : 0) +
+    1 +
+    (visibleColumns.routeDistance ? 1 : 0)
+  const timingGroupColSpan =
+    3 +
+    (visibleColumns.totalTime ? 1 : 0) +
+    (visibleColumns.progression ? 1 : 0)
+
+  const routeTableRows = selectedRoute ? buildRouteTableRows(selectedRoute.waypoints) : []
+  const routeEndTime = selectedRoute ? getRouteEndTime(selectedRoute.waypoints) : 0
 
   // Delete route
   const deleteRoute = (routeId) => {
     setRoutes(prevRoutes => prevRoutes.filter(r => r.id !== routeId))
     if (selectedRoute?.id === routeId) {
       setSelectedRoute(null)
+      setActivePanel('home')
     }
     setRouteConfirmingDelete(null)
   }
@@ -815,61 +1079,106 @@ function App() {
     setRouteConfirmingDelete(null)
   }
 
-  // Handle activity mode change - show confirmation if custom speeds exist
-  const handleActivityModeChange = (newActivityMode) => {
-    if (selectedRoute && hasCustomSpeeds(selectedRoute)) {
-      setActivityModeChangePending(newActivityMode)
-    } else {
-      // No custom speeds, change directly
-      updateRouteSettings('activityMode', newActivityMode)
-    }
+  const handleStartTimeChange = (newStartTime) => {
+    if (!selectedRoute || !newStartTime) return
+    updateRouteSettings('startTime', newStartTime)
   }
 
-  // Confirm activity mode change
-  const confirmActivityModeChange = () => {
-    if (activityModeChangePending) {
-      updateRouteSettings('activityMode', activityModeChangePending)
-      setActivityModeChangePending(null)
-    }
+  const handleSafetyTimeChange = (value) => {
+    if (!selectedRoute) return
+    const safetyTimePercentage = Math.max(0, Math.min(100, value))
+    updateRouteSettings('safetyTimePercentage', safetyTimePercentage)
   }
 
-  // Cancel activity mode change
-  const cancelActivityModeChange = () => {
-    setActivityModeChangePending(null)
+  const SETTINGS_REQUIRING_GPX_REPARSE = [
+    'distanceCalculationMethod',
+    'resampleSpacingM',
+    'smoothWindowM',
+    'elevationDeadbandM',
+  ]
+
+  const mergeLogsAfterReparse = (existingLog, newLog, settingsLogEntry) => {
+    const existingLogMap = new Map()
+    existingLog.forEach((entry) => {
+      const key = `${entry.timestamp}-${entry.type}-${entry.message}`
+      if (entry.read !== undefined) {
+        existingLogMap.set(key, entry.read)
+      }
+    })
+    const combined = settingsLogEntry
+      ? [...existingLog, settingsLogEntry, ...newLog]
+      : [...existingLog, ...newLog]
+    return combined.map((entry) => {
+      const key = `${entry.timestamp}-${entry.type}-${entry.message}`
+      if (existingLogMap.has(key)) {
+        return { ...entry, read: existingLogMap.get(key) }
+      }
+      return entry
+    })
   }
 
-  // Update default settings
-  const updateDefaultSettings = (field, value) => {
-    let newSettings
-    if (['ascentSpeed', 'descentSpeed', 'flatSpeed'].includes(field)) {
-      // Update speed for current activity mode
-      newSettings = {
-        ...settings,
-        activityModes: {
-          ...settings.activityModes,
-          [settings.activityMode]: {
-            ...settings.activityModes[settings.activityMode],
-            [field]: value
-          }
+  const mergeWaypointsAfterReparse = (route, parsedWaypoints) =>
+    parsedWaypoints.map((newWaypoint, index) => {
+      let existingWaypoint = route.waypoints.find(
+        (wp) =>
+          Math.abs(wp.latitude - newWaypoint.latitude) < 0.0001 &&
+          Math.abs(wp.longitude - newWaypoint.longitude) < 0.0001
+      )
+      if (!existingWaypoint && route.waypoints[index]) {
+        existingWaypoint = route.waypoints[index]
+      }
+      if (existingWaypoint) {
+        return {
+          ...newWaypoint,
+          terrainDifficultyPenalty: existingWaypoint.terrainDifficultyPenalty,
+          rests:
+            existingWaypoint.rests?.length > 0
+              ? existingWaypoint.rests
+              : normalizeWaypointRests(existingWaypoint).rests,
+          comments: existingWaypoint.comments,
+          isDecisionPoint: existingWaypoint.isDecisionPoint,
+          id: existingWaypoint.id,
+          name:
+            existingWaypoint.name &&
+            !existingWaypoint.name.match(/^(Waypoint|Point) \d+$/)
+              ? existingWaypoint.name
+              : newWaypoint.name,
         }
       }
-    } else {
-      newSettings = { ...settings, [field]: value }
-    }
+      return newWaypoint
+    })
 
-    if (field === 'distanceCalculationMethod') {
-      setSettings(newSettings)
-      if (selectedRoute) {
-        updateRouteSettings('distanceCalculationMethod', value)
-      }
-      return
+  const reparseRouteFromGpx = (route, newRouteSettings, field, value) => {
+    if (!route.gpxContent) {
+      alert(t('cannotReparseGpx'))
+      return null
     }
-
-    setSettings(newSettings)
-    
-    // General settings changes should not affect existing routes
-    // Only new routes will use the updated general settings
-    // Existing routes maintain their own independent settings
+    const parsed = parseGPXFile(route.gpxContent, newRouteSettings)
+    const settingsLogEntry = createLogEntry('info', 'Route distance settings updated', {
+      field,
+      value,
+      distanceCalculationMethod: newRouteSettings.distanceCalculationMethod,
+      resampleSpacingM: newRouteSettings.resampleSpacingM,
+      smoothWindowM: newRouteSettings.smoothWindowM,
+      elevationDeadbandM: newRouteSettings.elevationDeadbandM,
+    })
+    const mergedLog = mergeLogsAfterReparse(route.log || [], parsed.log || [], settingsLogEntry)
+    const mergedWaypoints = mergeWaypointsAfterReparse(route, parsed.waypoints)
+    const recalculatedWaypoints = recalculateWaypoints(
+      mergedWaypoints,
+      newRouteSettings,
+      { processedTrackPoints: parsed.processedTrackPoints ?? null },
+    )
+    const updatedRouteWithWaypoints = {
+      ...route,
+      waypoints: recalculatedWaypoints,
+      settings: newRouteSettings,
+      gpxData: parsed.gpxData,
+      processedTrackPoints: parsed.processedTrackPoints ?? null,
+      metadata: parsed.metadata,
+      log: mergedLog,
+    }
+    return updateRouteMetadata(updatedRouteWithWaypoints, recalculatedWaypoints)
   }
 
   // Update route-specific settings
@@ -883,7 +1192,7 @@ function App() {
     
     // If activity mode is changed, update speeds to match the new mode
     if (field === 'activityMode') {
-      const newModeSpeeds = settings.activityModes[value]
+      const newModeSpeeds = getModeSpeeds(value)
       newRouteSettings = {
         ...newRouteSettings,
         ascentSpeed: newModeSpeeds.ascentSpeed,
@@ -892,98 +1201,26 @@ function App() {
       }
     }
     
-    // If distance calculation method is changed, we need to reparse the GPX file
-    if (field === 'distanceCalculationMethod') {
+    if (SETTINGS_REQUIRING_GPX_REPARSE.includes(field)) {
       try {
-        // Use the stored original GPX content if available, otherwise we can't reparse
-        if (!selectedRoute.gpxContent) {
-          alert('Cannot change distance calculation method for this route. Please reload the GPX file to enable this feature.')
-          return
-        }
-        
-        // Re-parse the GPX with new distance calculation method
-        const parsed = parseGPXFile(selectedRoute.gpxContent, newRouteSettings)
-        
-        // Preserve existing log entries when re-parsing, maintaining read status
-        const existingLog = selectedRoute.log || []
-        const newLog = parsed.log || []
-        // Create a map of existing log entries by timestamp and type to preserve read status
-        const existingLogMap = new Map();
-        existingLog.forEach((entry, index) => {
-          const key = `${entry.timestamp}-${entry.type}-${entry.message}`;
-          if (entry.read !== undefined) {
-            existingLogMap.set(key, entry.read);
-          }
-        });
-        // Merge logs, preserving read status from existing logs
-        const mergedLog = [...existingLog, ...newLog].map(entry => {
-          const key = `${entry.timestamp}-${entry.type}-${entry.message}`;
-          if (existingLogMap.has(key)) {
-            return { ...entry, read: existingLogMap.get(key) };
-          }
-          return entry;
-        });
-        
-        // Merge new waypoints with existing waypoints to preserve user modifications
-        const mergedWaypoints = parsed.waypoints.map((newWaypoint, index) => {
-          // First try to find by same position (latitude/longitude)
-          let existingWaypoint = selectedRoute.waypoints.find(wp => 
-            Math.abs(wp.latitude - newWaypoint.latitude) < 0.0001 && 
-            Math.abs(wp.longitude - newWaypoint.longitude) < 0.0001
-          )
-          
-          // If not found by position, try by index as fallback
-          if (!existingWaypoint && selectedRoute.waypoints[index]) {
-            existingWaypoint = selectedRoute.waypoints[index]
-          }
-          
-          // If we found an existing waypoint, preserve user modifications
-          if (existingWaypoint) {
-            return {
-              ...newWaypoint, // Use new distance/time calculations from re-parsing
-              // Preserve user modifications
-              terrainDifficultyPenalty: existingWaypoint.terrainDifficultyPenalty,
-              stopDuration: existingWaypoint.stopDuration,
-              comments: existingWaypoint.comments,
-              isDecisionPoint: existingWaypoint.isDecisionPoint,
-              id: existingWaypoint.id, // Preserve existing ID to maintain stability
-              // Preserve user-modified name unless it's clearly auto-generated
-              name: existingWaypoint.name && 
-                    !existingWaypoint.name.match(/^(Waypoint|Point) \d+$/) ? 
-                    existingWaypoint.name : newWaypoint.name
-            }
-          }
-          
-          // No matching existing waypoint, use the new one as-is
-          return newWaypoint
-        })
-        
-        // Recalculate times with preserved penalties and rest times
-        const recalculatedWaypoints = recalculateWaypoints(mergedWaypoints, newRouteSettings)
-        
-        // Update metadata based on the recalculated waypoints
-        const updatedRouteWithWaypoints = { 
-          ...selectedRoute, 
-          waypoints: recalculatedWaypoints,
-          settings: newRouteSettings,
-          gpxData: parsed.gpxData,
-          metadata: parsed.metadata,
-          log: mergedLog
-        }
-        const updatedRoute = updateRouteMetadata(updatedRouteWithWaypoints, recalculatedWaypoints)
-    
-      setSelectedRoute(updatedRoute)
-      setRoutes(prevRoutes => prevRoutes.map(r => r.id === updatedRoute.id ? updatedRoute : r))
+        const updatedRoute = reparseRouteFromGpx(selectedRoute, newRouteSettings, field, value)
+        if (!updatedRoute) return
+        setSelectedRoute(updatedRoute)
+        setRoutes((prevRoutes) => prevRoutes.map((r) => (r.id === updatedRoute.id ? updatedRoute : r)))
         return
       } catch (error) {
-        console.error('Error re-parsing GPX with new distance method:', error)
-        alert(`Error updating distance calculation method: ${error.message}`)
+        console.error('Error re-parsing GPX:', error)
+        alert(`${t('errorUpdatingDistanceSettings')}: ${error.message}`)
         return
       }
     }
     
     const updatedRouteWithSettings = { ...selectedRoute, settings: newRouteSettings }
-    const recalculated = recalculateWaypoints(updatedRouteWithSettings.waypoints, newRouteSettings)
+    const recalculated = recalculateWaypoints(
+      updatedRouteWithSettings.waypoints,
+      newRouteSettings,
+      getTimeRecalcOptions(updatedRouteWithSettings, newRouteSettings),
+    )
     const updatedRouteWithWaypoints = { ...updatedRouteWithSettings, waypoints: recalculated }
     const updatedRoute = updateRouteMetadata(updatedRouteWithWaypoints, recalculated)
     
@@ -1025,7 +1262,7 @@ function App() {
       alert(t('pleaseSelectRoute'))
       return
     }
-    exportRouteToPDF(selectedRoute, settings, language)
+    exportRouteToPDF(selectedRoute, language)
   }
 
   // Export to CSV
@@ -1046,90 +1283,139 @@ function App() {
       }
     };
 
-    // CSV headers with units
-    const headers = [
-      t('waypointHeader'),
-      'Position_UTM',
-      'Position_Elevation_m',
+    const cols = getColumnVisibility(getEffectiveSettings(selectedRoute))
+
+    const headers = [t('originDestination')]
+    if (cols.destinationCoords) {
+      headers.push('Destination_UTM', 'Destination_Elevation_m')
+    }
+    headers.push(
       'Segment_Ascent_m',
-      'Segment_Descent_m', 
+      'Segment_Descent_m',
       'Segment_Distance_km',
-      'Route_Ascent_m',
-      'Route_Descent_m',
-      'Route_Distance_km',
-      'Segment_Time',
-      'Penalty_percent',
-      'Penalty_Time',
-      'Rest_min',
-      'Total_Time',
-      'Progression_percent',
+    )
+    if (cols.routeDistance) {
+      headers.push('Route_Ascent_m', 'Route_Descent_m', 'Route_Distance_km')
+    }
+    headers.push('Segment_Time', 'Penalty_percent', 'Penalty_Time')
+    if (cols.totalTime) {
+      headers.push('Total_Time')
+    }
+    if (cols.progression) {
+      headers.push('Progression_percent')
+    }
+    headers.push(
       t('timeHeader'),
       t('notesHeader'),
-      'Decision_Point'
-    ];
+      'Decision_Point',
+    )
 
-    // Create CSV data
-    const csvData = selectedRoute.waypoints.map((wp, index) => {
-      const displayName = getWaypointDisplayName(wp)
-      const penaltyDisplay = `${(wp.terrainDifficultyPenalty * 100).toFixed(0)}%`;
-      
-      const penaltyTime = wp.terrainDifficultyPenalty > 0 ? 
-        formatTimeHoursMinutesForMin(wp.segmentTime * wp.terrainDifficultyPenalty) : '';
+    const csvEndTime = getRouteEndTime(selectedRoute.waypoints)
 
-      return [
-        displayName,
-        wp.utm ? wp.utm.replace(/^Zone \d+[A-Z] /, '') : 'N/A',
-        wp.elevation?.toFixed(0) || '0',
-        index === 0 ? '' : (wp.segmentAscent?.toFixed(0) || '0'),
-        index === 0 ? '' : (wp.segmentDescent?.toFixed(0) || '0'),
-        index === 0 ? '' : (wp.segmentDistance?.toFixed(2) || '0.00'),
-        wp.totalAscent?.toFixed(0) || '0',
-        wp.totalDescent?.toFixed(0) || '0',
-        wp.totalDistance?.toFixed(2) || '0.00',
-        index === 0 ? '' : formatTimeHoursMinutesForMin(wp.segmentTime || 0),
-        penaltyDisplay,
-        penaltyTime,
-        index === 0 ? '' : (wp.stopDuration?.toFixed(0) || '0'),
-        formatTimeHoursMinutesForMin(wp.totalTime || 0),
-        selectedRoute.waypoints.length > 0 ? 
-          `${Math.round(((wp.totalTime || 0) / (selectedRoute.waypoints[selectedRoute.waypoints.length - 1].totalTime || 1)) * 100)}%` : 
-          '0%',
-        wp.hour || '',
-        wp.comments || '',
-        wp.isDecisionPoint ? t('yes') : t('no')
-      ];
-    });
+    const csvData = buildRouteTableRows(selectedRoute.waypoints).map((tableRow) => {
+      const isRest = tableRow.rowType === 'rest'
+      const wp = tableRow.waypoint
+      const index = tableRow.waypointIndex
+      const rest = tableRow.rest
+      const displayName = isRest
+        ? getRestLabel(selectedRoute, wp, t)
+        : buildLegDescription(selectedRoute, index, t)
+      const penaltyDisplay = `${(wp.terrainDifficultyPenalty * 100).toFixed(0)}%`
+      const penaltyTime = wp.terrainDifficultyPenalty > 0
+        ? formatTimeHoursMinutesForMin(wp.segmentTime * wp.terrainDifficultyPenalty)
+        : ''
+
+      const row = [displayName]
+      if (cols.destinationCoords) {
+        if (isRest) {
+          row.push('', '')
+        } else {
+          row.push(
+            wp.utm ? wp.utm.replace(/^Zone \d+[A-Z] /, '') : 'N/A',
+            wp.elevation?.toFixed(0) || '0',
+          )
+        }
+      }
+      if (isRest) {
+        row.push('', '', '')
+      } else {
+        row.push(
+          index === 0 ? '' : (wp.segmentAscent?.toFixed(0) || '0'),
+          index === 0 ? '' : (wp.segmentDescent?.toFixed(0) || '0'),
+          index === 0 ? '' : (wp.segmentDistance?.toFixed(2) || '0.00'),
+        )
+      }
+      if (cols.routeDistance) {
+        if (isRest) {
+          row.push('', '', '')
+        } else {
+          row.push(
+            wp.totalAscent?.toFixed(0) || '0',
+            wp.totalDescent?.toFixed(0) || '0',
+            wp.totalDistance?.toFixed(2) || '0.00',
+          )
+        }
+      }
+      row.push(
+        isRest
+          ? formatTimeHoursMinutesForMin(rest.durationMinutes || 0)
+          : index === 0
+            ? ''
+            : formatTimeHoursMinutesForMin(wp.segmentTime || 0),
+        isRest ? '' : penaltyDisplay,
+        isRest ? '' : penaltyTime,
+      )
+      if (cols.totalTime) {
+        row.push(
+          formatTimeHoursMinutesForMin(
+            isRest ? rest.totalTime || 0 : wp.totalTime || 0,
+          ),
+        )
+      }
+      if (cols.progression) {
+        row.push(
+          isRest
+            ? ''
+            : `${getRowProgressionPercent(getRowTimingMinutes(tableRow), csvEndTime)}%`,
+        )
+      }
+      row.push(
+        isRest ? rest.departureHour || '' : wp.hour || '',
+        isRest ? '' : wp.comments || '',
+        isRest ? '' : wp.isDecisionPoint ? t('yes') : t('no'),
+      )
+      return row
+    })
 
     // Add safety time row if there are waypoints
     if (selectedRoute.waypoints.length > 0) {
-      const lastWaypoint = selectedRoute.waypoints[selectedRoute.waypoints.length - 1];
       const effectiveSettings = getEffectiveSettings(selectedRoute);
-      const safetyTime = (lastWaypoint.totalTime * (effectiveSettings.safetyTimePercentage / 100));
-      const totalWithSafety = lastWaypoint.totalTime + safetyTime;
+      const safetyTime = csvEndTime * (effectiveSettings.safetyTimePercentage / 100);
+      const totalWithSafety = csvEndTime + safetyTime;
       
       // Calculate arrival time with safety
       const arrivalTime = calculateArrivalTime(effectiveSettings.startTime || '08:00', totalWithSafety);
 
-      const safetyRow = [
-        `Safety Time (${effectiveSettings.safetyTimePercentage}%)`,
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        '',
-        formatTimeHoursMinutesForMin(safetyTime),
-        '',
-        '',
-        '',
-        formatTimeHoursMinutesForMin(totalWithSafety),
-        `100+${effectiveSettings.safetyTimePercentage}%`,
+      const safetyRow = [`Safety Time (${effectiveSettings.safetyTimePercentage}%)`]
+      if (cols.destinationCoords) {
+        safetyRow.push('', '')
+      }
+      safetyRow.push('', '', '')
+      if (cols.routeDistance) {
+        safetyRow.push('', '', '')
+      }
+      safetyRow.push(formatTimeHoursMinutesForMin(safetyTime), '', '')
+      if (cols.totalTime) {
+        safetyRow.push(formatTimeHoursMinutesForMin(totalWithSafety))
+      }
+      if (cols.progression) {
+        safetyRow.push('')
+      }
+      safetyRow.push(
         arrivalTime,
         '',
-        ''
-      ];
+        '',
+      )
       
       csvData.push(safetyRow);
     }
@@ -1163,31 +1449,8 @@ function App() {
     setRoutes([])
     setSelectedRoute(null)
     
-    // Reset settings to defaults
-    const defaultSettings = {
-      activityMode: 'hiking',
-      activityModes: {
-        hiking: {
-          ascentSpeed: 300,
-          descentSpeed: 400,
-          flatSpeed: 5000,
-        },
-        snowshoes: {
-          ascentSpeed: 200,
-          descentSpeed: 300,
-          flatSpeed: 3000,
-        },
-        skiTouring: {
-          ascentSpeed: 400,
-          descentSpeed: 600,
-          flatSpeed: 4000,
-        }
-      },
-      startTime: '08:00',
-      distanceCalculationMethod: 'track',
-      safetyTimePercentage: 20
-    }
-    setSettings(defaultSettings)
+    setAppSettings({ ...DEFAULT_APP_SETTINGS })
+    setActivePanel('home')
     
     // Clear localStorage
     localStorage.removeItem('mountainRoutes')
@@ -1233,63 +1496,18 @@ function App() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="btn-primary"
-              onClick={() => handlePanelToggle('route-manager')}
-              title={showRouteManager ? t("hideRouteManager") : t("showRouteManager")}
-            >
-              {showRouteManager ? (
-                <>
-                  <EyeOff className="w-4 h-4 mr-2" />
-                  {t('routeManager')}
-                </>
-              ) : (
-                <>
-                  <FolderOpen className="w-4 h-4 mr-2" />
-                  {t('routeManager')}
-                </>
-              )}
-            </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="btn-primary"
-              onClick={() => handlePanelToggle('general-settings')}
-              title={showSettings ? t("hideSettings") : t("showSettings")}
-            >
-              {showSettings ? (
-                <>
-                  <EyeOff className="w-4 h-4 mr-2" />
-                  {t('generalSettings')}
-                </>
-              ) : (
-                <>
-                  <Settings className="w-4 h-4 mr-2" />
-                  {t('generalSettings')}
-                </>
-              )}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="btn-primary"
-            onClick={() => handlePanelToggle('help')}
-            title={showHelp ? t("hideHelp") : t("showHelp")}
-          >
-            {showHelp ? (
-              <>
-                <EyeOff className="w-4 h-4 mr-2" />
-                {t('help')}
-              </>
-            ) : (
-              <>
-                <HelpCircle className="w-4 h-4 mr-2" />
-                {t('help')}
-              </>
+            {!isHomeView && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="btn-primary"
+                onClick={() => handlePanelToggle('home')}
+                title={t('showHome')}
+              >
+                <Home className="w-4 h-4 mr-2" />
+                {t('home')}
+              </Button>
             )}
-          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -1300,14 +1518,274 @@ function App() {
             <Heart className="w-4 h-4 mr-2 heartbeat-icon" />
             {t('donate')}
           </Button>
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="appearance-none bg-background border border-input rounded-md px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent min-w-[7rem]"
+              title={t('selectLanguage')}
+              aria-label={t('selectLanguage')}
+            >
+              {Object.entries(languages).map(([code, lang]) => (
+                <option key={code} value={code}>
+                  {lang.flag} {lang.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
 
-            {/* Route Details and Panels */}
+            {/* Home or route view */}
             <div className="flex flex-col-reverse lg:flex-row gap-6 panel-slide-in">
+          {isHomeView ? (
+            <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Routes */}
+              <Card className="shadow-mountain-lg">
+                <CardHeader>
+                  <CardTitle>{t('routeManager')}</CardTitle>
+                  <CardDescription>{t('manageRoutes')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {routes.length > 0 && (
+                    <div className="space-y-2">
+                      <h3 className="text-sm font-semibold">{t('savedRoutes')}</h3>
+                      {routes.map(route => (
+                        <div
+                          key={route.id}
+                          className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
+                            selectedRoute?.id === route.id
+                              ? 'bg-primary/10 border-primary'
+                              : 'bg-card border-border hover:bg-gray-50'
+                          }`}
+                          onClick={() => openRoute(route)}
+                        >
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4" />
+                            <span className="text-sm font-medium truncate">{route.name}</span>
+                          </div>
+                          <div className="relative">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className={routeConfirmingDelete === route.id ? 'btn-danger bg-red-100 border-red-300' : 'btn-danger'}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteRouteClick(route.id)
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                            {routeConfirmingDelete === route.id && (
+                              <div className="absolute right-0 top-0 -translate-y-full -translate-x-2 mb-2 p-4 bg-white border border-gray-200 text-gray-700 text-xs rounded-lg shadow-lg z-10 w-64">
+                                <div className="whitespace-normal mb-3">{t('deleteRouteMessage')}</div>
+                                <div className="flex gap-2 justify-end">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-6 px-2 text-xs bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      cancelDeleteRoute()
+                                    }}
+                                  >
+                                    {t('cancel')}
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-6 px-2 text-xs btn-danger"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      confirmDeleteRoute(route.id)
+                                    }}
+                                  >
+                                    <Trash2 className="w-3 h-3 mr-1" />
+                                    {t('deleteRoute')}
+                                  </Button>
+                                </div>
+                                <div className="absolute top-full right-6 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white" />
+                                <div className="absolute top-full right-6 -mt-px w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-200" />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {routes.length === 0 && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                      <p className="text-sm">{t('noRoutes')}</p>
+                    </div>
+                  )}
+                  <div className="mt-6">
+                    <h3 className="text-sm font-semibold mb-3">{t('addRouteTitle')}</h3>
+                    <p className="text-xs text-muted-foreground mb-4">{t('gpxFileExplanation')}</p>
+                    <div
+                      className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all duration-200 hover:border-primary hover:bg-gray-50 ${
+                        isDragOver ? 'border-primary bg-gray-50' : 'border-border'
+                      }`}
+                      onDragEnter={handleDragEnter}
+                      onDragLeave={handleDragLeave}
+                      onDragOver={handleDragOver}
+                      onDrop={handleDrop}
+                    >
+                      <Upload className={`w-12 h-12 mx-auto mb-3 transition-colors ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <h4 className={`text-sm font-semibold mb-2 transition-colors ${isDragOver ? 'text-primary' : ''}`}>
+                        {isDragOver ? t('dropGPXFileHere') : t('uploadGPXFile')}
+                      </h4>
+                      <p className="text-xs text-muted-foreground mb-3">{t('dragDropZone')}</p>
+                      <label htmlFor="gpx-upload-home">
+                        <Button variant="outline" size="sm" className="btn-primary" asChild>
+                          <div className="cursor-pointer">
+                            <Upload className="w-3 h-3 mr-2" />
+                            {t('selectFile')}
+                          </div>
+                        </Button>
+                        <Input
+                          id="gpx-upload-home"
+                          type="file"
+                          accept=".gpx"
+                          onChange={handleFileInputChange}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Help */}
+              <Card className="shadow-mountain-lg">
+                <CardHeader>
+                  <CardTitle>{t('help')}</CardTitle>
+                  <CardDescription>{t('technicalDetailsDesc')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-1">
+                    <div>
+                      <h4 className="text-sm font-semibold mb-3">{t('howItWorks')}</h4>
+                      <div className="space-y-3 text-sm text-muted-foreground">
+                        <p>
+                          {t('howItWorksDesc')}{' '}
+                          <a href="https://gpx.studio" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">
+                            https://gpx.studio
+                          </a>
+                          {' '}{t('howItWorksDesc2')}
+                        </p>
+                        <div className="pt-2 border-t border-border">
+                          <p className="font-medium text-foreground mb-2">{t('whatIsGPX')}</p>
+                          <p className="text-xs">{t('whatIsGPXDesc')}</p>
+                        </div>
+                        <div className="pt-2 border-t border-border">
+                          <p className="font-medium text-foreground mb-2">{t('whatThisToolDoes')}</p>
+                          <p className="text-xs mb-2">{t('whatThisToolDoesDesc')}</p>
+                          <ul className="text-xs space-y-1 list-disc list-inside pl-2">
+                            <li>{t('plannerFeature1')}</li>
+                            <li>{t('plannerFeature2')}</li>
+                            <li>{t('plannerFeature3')}</li>
+                            <li>{t('plannerFeature4')}</li>
+                            <li>{t('plannerFeature5')}</li>
+                            <li>{t('plannerFeature6')}</li>
+                            <li>{t('plannerFeature7')}</li>
+                          </ul>
+                        </div>
+                        <div className="pt-4 border-t border-border">
+                          <p className="font-medium text-foreground mb-3">{t('appSettings')}</p>
+                          <div className="space-y-4">
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                id="suppress-waypoint-warning-help"
+                                checked={appSettings.suppressWaypointModificationWarning || false}
+                                onChange={(e) => {
+                                  setAppSettings({
+                                    ...appSettings,
+                                    suppressWaypointModificationWarning: e.target.checked,
+                                  })
+                                }}
+                                className="w-4 h-4"
+                              />
+                              <label htmlFor="suppress-waypoint-warning-help" className="text-xs font-medium leading-none cursor-pointer">
+                                {t('suppressWaypointModificationWarning')}
+                              </label>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full btn-danger"
+                              onClick={() => setShowCleanDataDialog(true)}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              {t('cleanAllData')}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium mb-3">{t('otherTools')}</h4>
+                      <div className="space-y-3 text-sm">
+                        <div><span className="text-muted-foreground">{t('otherToolsDesc')}</span></div>
+                        <div className="space-y-2">
+                          <div>
+                            <a href="https://wikiloc.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-medium">{t('wikiloc')}</a>
+                            <div className="text-xs text-muted-foreground mt-1">{t('wikilocDesc')}</div>
+                          </div>
+                          <div>
+                            <a href="https://gpx.studio" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-medium">{t('gpxStudio')}</a>
+                            <div className="text-xs text-muted-foreground mt-1">{t('gpxStudioDesc')}</div>
+                          </div>
+                          <div>
+                            <a href="https://www.gpsvisualizer.com/profile_input" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-medium">{t('gpsVisualizer')}</a>
+                            <div className="text-xs text-muted-foreground mt-1">{t('gpsVisualizerDesc')}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium mb-3">{t('support')}</h4>
+                      <div className="space-y-2 text-sm">
+                        <div><span className="text-muted-foreground">{t('reportIssues')}</span></div>
+                        <a href="https://github.com/Campano/gpx-route-planner/issues" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">{t('githubIssuesPage')}</a>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium mb-3">{t('donateDesc')}</h4>
+                      <div className="space-y-2 text-sm">
+                        <p className="text-muted-foreground">{t('donateMessage')}</p>
+                        <a href="https://github.com/sponsors/Campano" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline font-medium">{t('donate')}</a>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium mb-3">{t('about')}</h4>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">{t('version')}:</span>
+                          <span className="font-mono">{packageJson.version}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">{t('built')}:</span>
+                          <span className="font-mono">{new Date().toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">{t('author')}:</span>
+                          <span className="font-mono">Simón Campano</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">{t('license')}:</span>
+                          <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer" className="font-mono text-blue-600 hover:text-blue-800 underline">CC BY-NC-SA 4.0</a>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+          <>
           {/* Waypoint Table - Main content */}
-          <div className={`flex-1 ${activePanel ? 'lg:w-2/3' : 'w-full'} ${activePanel ? 'lg:order-1' : ''}`}>
+          <div className={`flex-1 ${showRouteSidePanel ? 'lg:w-2/3' : 'w-full'} ${showRouteSidePanel ? 'lg:order-1' : ''}`}>
           <Card className="shadow-mountain-lg">
             {selectedRoute && (
               <>
@@ -1358,8 +1836,7 @@ function App() {
                           className="text-muted-foreground"
                           dangerouslySetInnerHTML={{
                             __html: (() => {
-                              const lastWaypoint = selectedRoute.waypoints[selectedRoute.waypoints.length - 1];
-                              const totalWithSafety = lastWaypoint.totalTime * (1 + (getEffectiveSettings(selectedRoute).safetyTimePercentage || 0) / 100);
+                              const totalWithSafety = routeEndTime * (1 + (getEffectiveSettings(selectedRoute).safetyTimePercentage || 0) / 100);
                               const startTime = getEffectiveSettings(selectedRoute).startTime;
                               const [startHours, startMinutes] = startTime.split(':').map(Number);
                               const totalMinutes = startHours * 60 + startMinutes + Math.round(totalWithSafety);
@@ -1373,7 +1850,7 @@ function App() {
                                 return match ? `UTM ${match[1]}${match[2]}` : null;
                               }).filter(Boolean))];
                               const utmZone = utmZones.length > 0 ? utmZones.join(', ') : 'N/A';
-                              const activityMode = getEffectiveSettings(selectedRoute).activityMode || settings.activityMode;
+                              const activityMode = getEffectiveSettings(selectedRoute).activityMode || DEFAULT_ACTIVITY_MODE;
                               const ascentSpeed = getEffectiveSettings(selectedRoute).ascentSpeed;
                               const descentSpeed = getEffectiveSettings(selectedRoute).descentSpeed;
                               const flatSpeed = getEffectiveSettings(selectedRoute).flatSpeed;
@@ -1404,55 +1881,99 @@ function App() {
                           </>
                         )}
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="btn-primary relative"
+                        onClick={() => handlePanelToggle('route-exports')}
+                        title={showRouteExports ? t('hideExports') : t('showExports')}
+                      >
+                        {showRouteExports ? (
+                          <>
+                            <EyeOff className="w-4 h-4 mr-2" />
+                            {t('exports')}
+                          </>
+                        ) : (
+                          <>
+                            <FileDown className="w-4 h-4 mr-2" />
+                            {t('exports')}
+                          </>
+                        )}
+                      </Button>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
-              {selectedRoute ? (
                 <div className="space-y-6">
                   {selectedRoute?.waypoints?.length > 0 && (
-                    <div className="h-96 w-full overflow-hidden rounded-lg border border-border">
+                    <div className="route-map-print-hide h-96 w-full overflow-hidden rounded-lg border border-border">
                       <RouteMap
                         route={selectedRoute}
                         onAddWaypoint={handleAddWaypointAtPosition}
                         onRemoveWaypoint={handleRemoveWaypoint}
-                        getWaypointDisplayName={getWaypointDisplayName}
+                        getWaypointDisplayName={getPointLabel}
                         panelState={activePanel}
                       />
                     </div>
                   )}
                   {/* Waypoint Table */}
-                <div className="overflow-x-auto">
-                  <Table>
+                <div className="overflow-x-auto route-table-print-wrap">
+                  <Table className="route-waypoint-table text-[10px] [&_th]:py-1 [&_td]:py-1 [&_th]:px-1.5 [&_td]:px-1.5">
                     <TableHeader>
                           {/* Group Header Row */}
                           <TableRow>
-                            <TableHead rowSpan={2} className="w-40 text-center bg-muted/50">{t('waypoint')}</TableHead>
-                            <TableHead colSpan={3} className="text-center bg-muted/50">{t('distance')}</TableHead>
-                            <TableHead colSpan={6} className="text-center bg-muted/50">{t('timing')}</TableHead>
-                            <TableHead rowSpan={2} className="w-48 min-w-48 max-w-48 text-center bg-muted/50">{t('notes')}</TableHead>
+                            <TableHead rowSpan={2} className="route-table-section-col w-32 min-w-32 text-center bg-muted/50">{t('originDestination')}</TableHead>
+                            <TableHead rowSpan={2} className="w-10 min-w-10 text-center bg-muted/50">{t('critical')}</TableHead>
+                            <TableHead rowSpan={2} className="route-table-rest-col w-10 min-w-10 text-center bg-muted/50">{t('restColumn')}</TableHead>
+                            <TableHead colSpan={distanceGroupColSpan} className="text-center bg-muted/50">{t('distance')}</TableHead>
+                            <TableHead colSpan={timingGroupColSpan} className="text-center bg-muted/50">{t('timing')}</TableHead>
+                            <TableHead rowSpan={2} className="w-40 min-w-40 max-w-40 text-center bg-muted/50">{t('notes')}</TableHead>
                           </TableRow>
                           {/* Column Header Row */}
                           <TableRow>
-                            <TableHead className="w-32 text-center bg-muted/30">Position</TableHead>
+                            {visibleColumns.destinationCoords && (
+                              <TableHead className="w-32 text-center bg-muted/30">{t('destinationCoords')}</TableHead>
+                            )}
                             <TableHead className="w-24 text-center bg-muted/30">{t('segment')}</TableHead>
-                            <TableHead className="w-24 text-center bg-muted/30">{t('route')}</TableHead>
+                            {visibleColumns.routeDistance && (
+                              <TableHead className="w-24 text-center bg-muted/30">{t('routeDistance')}</TableHead>
+                            )}
                             <TableHead className="w-24 text-center bg-muted/30">{t('segmentTime')}</TableHead>
                             <TableHead className="w-24 text-center bg-muted/30">{t('penalty')}</TableHead>
-                            <TableHead className="w-24 text-center bg-muted/30">{t('rest')}</TableHead>
-                            <TableHead className="w-24 text-center bg-muted/30">{t('total')}</TableHead>
-                            <TableHead className="w-24 text-center bg-muted/30">{t('progression')}</TableHead>
+                            {visibleColumns.totalTime && (
+                              <TableHead className="w-24 text-center bg-muted/30">{t('totalTiming')}</TableHead>
+                            )}
+                            {visibleColumns.progression && (
+                              <TableHead className="w-24 text-center bg-muted/30">{t('progression')}</TableHead>
+                            )}
                             <TableHead className="w-24 text-center bg-muted/30">{t('time')}</TableHead>
                           </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {selectedRoute.waypoints.map((waypoint, index) => (
-                        <TableRow key={waypoint.id} className={index % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
-                              {/* Waypoint Column */}
-                              <TableCell className="w-40">
-                                <div className="space-y-1">
+                      {routeTableRows.map((row, rowIndex) => {
+                        const isRest = row.rowType === 'rest'
+                        const waypoint = row.waypoint
+                        const index = row.waypointIndex
+                        const rest = row.rest
+                        return (
+                        <TableRow
+                          key={isRest ? rest.id : waypoint.id}
+                          className={
+                            isRest
+                              ? 'bg-amber-50/80 dark:bg-amber-950/20'
+                              : rowIndex % 2 === 0
+                                ? 'bg-background'
+                                : 'bg-muted/20'
+                          }
+                        >
+                              <TableCell className="route-table-section-col w-32 align-middle">
+                                {isRest ? (
+                                  <span className="font-medium text-amber-900 dark:text-amber-100 truncate block">
+                                    {getRestLabel(selectedRoute, waypoint, t)}
+                                  </span>
+                                ) : (
                                   <div 
-                                    className={`h-8 px-2 py-1 text-xs font-medium rounded border flex items-center group ${
+                                    className={`h-7 px-1.5 py-0.5 font-medium rounded border flex items-center group ${
                                     waypoint.isStartPoint ? 'bg-green-100 text-green-800 border-green-300' :
                                     waypoint.isEndPoint ? 'bg-red-100 text-red-800 border-red-300' :
                                       'bg-muted/30 cursor-pointer hover:bg-muted/50'
@@ -1539,45 +2060,87 @@ function App() {
                                           // For all other keys, stop propagation to prevent dialog from closing
                                           e.stopPropagation();
                                         }}
-                                        className="h-6 text-xs px-1"
+                                        className="h-5 text-[10px] px-1"
                                         placeholder={waypoint.isStartPoint ? t('start') : waypoint.isEndPoint ? t('end') : t('waypoint')}
                                         autoFocus
                                         onClick={(e) => e.stopPropagation()}
                                         onFocus={(e) => e.stopPropagation()}
                                       />
                                     ) : (
-                                      <span className="truncate flex-1">{getWaypointDisplayName(waypoint)}</span>
+                                      <span className="truncate flex-1">{buildLegDescription(selectedRoute, index, t)}</span>
                                     )}
                                     {editingWaypointName !== waypoint.id && !waypoint.isStartPoint && !waypoint.isEndPoint && (
-                                      <Edit3 className="w-3 h-3 ml-1 opacity-0 group-hover:opacity-50" />
+                                      <Edit3 className="route-table-edit-icon w-2.5 h-2.5 ml-1 text-muted-foreground flex-shrink-0" />
                                     )}
                                   </div>
-                                  <div className="flex items-center gap-2 justify-center">
-                                    <input
-                                      type="checkbox"
-                                      checked={waypoint.isDecisionPoint}
-                                      onChange={(e) => updateWaypoint(waypoint.id, 'isDecisionPoint', e.target.checked)}
-                                      className="w-4 h-4"
-                                      disabled={waypoint.isStartPoint || waypoint.isEndPoint}
-                                    />
-                                    <span className="text-xs">{t('decisionPoint')}</span>
-                                  </div>
-                                </div>
+                                )}
                               </TableCell>
-                              {/* Position Column */}
-                              <TableCell className="w-32">
-                                <div className="space-y-1 text-xs text-center">
-                                  <div className="text-muted-foreground">
-                                    {waypoint.utm ? waypoint.utm.replace(/^Zone \d+[A-Z] /, '') : 'N/A'}
-                                  </div>
-                                  <div className="font-medium">
-                                      {waypoint.elevation.toFixed(0)}m
-                                  </div>
-                                </div>
+                              <TableCell
+                                className={`w-10 text-center align-middle ${
+                                  !isRest && waypoint.isDecisionPoint
+                                    ? 'bg-red-100 dark:bg-red-950/50'
+                                    : ''
+                                }`}
+                              >
+                                {!isRest && (
+                                  <input
+                                    type="checkbox"
+                                    checked={waypoint.isDecisionPoint}
+                                    onChange={(e) => updateWaypoint(waypoint.id, 'isDecisionPoint', e.target.checked)}
+                                    className="w-3.5 h-3.5"
+                                    disabled={waypoint.isStartPoint || waypoint.isEndPoint}
+                                    title={t('decisionPoint')}
+                                    aria-label={t('decisionPoint')}
+                                  />
+                                )}
                               </TableCell>
-                          {/* Segment Columns */}
-                          <TableCell className="text-xs text-center">
-                            {index === 0 ? (
+                              <TableCell className="route-table-rest-col w-10 text-center align-middle">
+                                {isRest ? (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                    title={t('removeRest')}
+                                    onClick={() => removeRestAtWaypoint(waypoint.id, rest.id)}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                ) : (
+                                  (waypoint.rests ?? []).length === 0 && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 text-muted-foreground hover:text-amber-800 dark:hover:text-amber-200"
+                                      title={t('addRest')}
+                                      onClick={() => addRestAtWaypoint(waypoint.id)}
+                                    >
+                                      <OctagonPause className="w-3.5 h-3.5" />
+                                    </Button>
+                                  )
+                                )}
+                              </TableCell>
+                              {visibleColumns.destinationCoords && (
+                                <TableCell className="w-32">
+                                  {isRest ? (
+                                    <span className="text-muted-foreground">—</span>
+                                  ) : (
+                                  <div className="space-y-0.5 text-center">
+                                    <div className="text-muted-foreground">
+                                      {waypoint.utm ? waypoint.utm.replace(/^Zone \d+[A-Z] /, '') : 'N/A'}
+                                    </div>
+                                    <div className="font-medium">
+                                        {waypoint.elevation.toFixed(0)}m
+                                    </div>
+                                  </div>
+                                  )}
+                                </TableCell>
+                              )}
+                          <TableCell className="text-center">
+                            {isRest ? (
+                              <span className="text-muted-foreground">—</span>
+                            ) : index === 0 ? (
                               <span className="text-muted-foreground">—</span>
                             ) : (
                             <div className="space-y-1">
@@ -1587,17 +2150,48 @@ function App() {
                             </div>
                             )}
                           </TableCell>
-                          {/* Route Columns */}
-                          <TableCell className="text-xs text-center">
-                            <div className="space-y-1">
-                              <div className="text-green-600 font-medium">↑{waypoint.totalAscent.toFixed(0)}m</div>
-                              <div className="text-red-600 font-medium">↓{waypoint.totalDescent.toFixed(0)}m</div>
-                              <div className="text-blue-600 font-medium">{waypoint.totalDistance.toFixed(2)}km</div>
-                            </div>
-                          </TableCell>
-                          {/* Timing Columns */}
-                          <TableCell className="text-xs text-center">
-                            {index === 0 ? (
+                          {visibleColumns.routeDistance && (
+                            <TableCell className="text-center">
+                              {isRest ? (
+                                <span className="text-muted-foreground">—</span>
+                              ) : (
+                              <div className="space-y-0.5">
+                                <div className="text-green-600 font-medium">↑{waypoint.totalAscent.toFixed(0)}m</div>
+                                <div className="text-red-600 font-medium">↓{waypoint.totalDescent.toFixed(0)}m</div>
+                                <div className="text-blue-600 font-medium">{waypoint.totalDistance.toFixed(2)}km</div>
+                              </div>
+                              )}
+                            </TableCell>
+                          )}
+                          <TableCell
+                            className={`text-center ${isRest ? 'group cursor-pointer' : ''}`}
+                            onClick={() => isRest && editingRest !== rest.id && setEditingRest(rest.id)}
+                          >
+                            {isRest ? (
+                              editingRest === rest.id ? (
+                                <Input
+                                  type="number"
+                                  value={rest.durationMinutes}
+                                  onChange={(e) => updateRestDuration(waypoint.id, rest.id, parseFloat(e.target.value) || 0)}
+                                  onBlur={() => setEditingRest(null)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === 'Escape') {
+                                      setEditingRest(null)
+                                    }
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="h-6 text-[10px] w-16 text-center mx-auto"
+                                  min={0}
+                                  step={1}
+                                  autoFocus
+                                />
+                              ) : (
+                                <div className="flex items-center justify-center gap-1">
+                                  <span>{formatTimeHoursMinutesForMin(rest.durationMinutes)}</span>
+                                  <Edit3 className="route-table-edit-icon w-3 h-3 text-muted-foreground flex-shrink-0" />
+                                </div>
+                              )
+                            ) : index === 0 ? (
                               <span className="text-muted-foreground">—</span>
                             ) : (
                               formatTimeHoursMinutesForMin(waypoint.segmentTime)
@@ -1605,9 +2199,9 @@ function App() {
                           </TableCell>
                           <TableCell 
                             className="penalty-cell group"
-                            onClick={() => editingPenalty !== waypoint.id && setEditingPenalty(waypoint.id)}
+                            onClick={() => !isRest && editingPenalty !== waypoint.id && setEditingPenalty(waypoint.id)}
                           >
-                            {index === 0 ? (
+                            {isRest || index === 0 ? (
                               <span className="text-muted-foreground">—</span>
                             ) : editingPenalty === waypoint.id ? (
                 <Input
@@ -1625,12 +2219,12 @@ function App() {
                                 }}
                                 onClick={(e) => e.stopPropagation()}
                   step="0.1"
-                              className="h-8 text-xs w-20 text-center"
+                              className="h-6 text-[10px] w-16 text-center"
                                 autoFocus
                               />
                             ) : (
                               <div className="flex items-center justify-center gap-1">
-                                <span className="text-xs penalty-text">
+                                <span className="penalty-text">
                                   {(waypoint.terrainDifficultyPenalty * 100).toFixed(0)}%
                                   {waypoint.terrainDifficultyPenalty > 0 && (
                                     <span className="text-muted-foreground">
@@ -1638,60 +2232,67 @@ function App() {
                                     </span>
                                   )}
                                 </span>
-                                <Edit3 className="w-3 h-3 text-muted-foreground penalty-icon flex-shrink-0" />
+                                <Edit3 className="route-table-edit-icon w-3 h-3 text-muted-foreground penalty-icon flex-shrink-0" />
                               </div>
                             )}
                           </TableCell>
-                          <TableCell 
-                            className="rest-cell group"
-                            onClick={() => editingRest !== waypoint.id && setEditingRest(waypoint.id)}
+                          {visibleColumns.totalTime && (
+                            <TableCell className="text-center">
+                              {isRest
+                                ? formatTimeHoursMinutesForMin(rest.totalTime)
+                                : formatTimeHoursMinutesForMin(waypoint.totalTime)}
+                            </TableCell>
+                          )}
+                          {visibleColumns.progression && (
+                            <TableCell className="text-center">
+                              {isRest ? (
+                                <span className="text-muted-foreground">—</span>
+                              ) : (
+                                `${getRowProgressionPercent(getRowTimingMinutes(row), routeEndTime)}%`
+                              )}
+                            </TableCell>
+                          )}
+                          <TableCell
+                            className={`text-center ${!isRest && index === 0 ? 'group cursor-pointer' : ''}`}
+                            onClick={() => !isRest && index === 0 && !editingStartTime && setEditingStartTime(true)}
                           >
-                            {index === 0 ? (
-                              <span className="text-muted-foreground">—</span>
-                            ) : editingRest === waypoint.id ? (
-                <Input
-                  type="number"
-                              value={waypoint.stopDuration}
-                              onChange={(e) => updateWaypoint(waypoint.id, 'stopDuration', parseFloat(e.target.value) || 0)}
-                                onBlur={() => setEditingRest(null)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    setEditingRest(null);
-                                  }
-                                  if (e.key === 'Escape') {
-                                    setEditingRest(null);
-                                  }
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                              className="h-8 text-xs w-20 text-center"
-                                autoFocus
-                              />
+                            {isRest ? (
+                              <span>{rest.departureHour}</span>
+                            ) : index === 0 ? (
+                              editingStartTime ? (
+                                <Input
+                                  type="time"
+                                  value={getEffectiveSettings(selectedRoute).startTime}
+                                  onChange={(e) => handleStartTimeChange(e.target.value)}
+                                  onBlur={() => setEditingStartTime(false)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === 'Escape') {
+                                      setEditingStartTime(false)
+                                    }
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="h-6 text-[10px] w-24 text-center mx-auto"
+                                  autoFocus
+                                />
+                              ) : (
+                                <div className="flex items-center justify-center gap-1">
+                                  <span>{waypoint.hour}</span>
+                                  <Edit3 className="route-table-edit-icon w-3 h-3 text-muted-foreground flex-shrink-0" />
+                                </div>
+                              )
                             ) : (
-                              <div className="flex items-center justify-center gap-1">
-                                <span className="text-xs rest-text">{waypoint.stopDuration.toFixed(0)}min</span>
-                                <Edit3 className="w-3 h-3 text-muted-foreground rest-icon flex-shrink-0" />
-                              </div>
+                              waypoint.hour
                             )}
                           </TableCell>
-                          <TableCell className="text-xs text-center">{formatTimeHoursMinutesForMin(waypoint.totalTime)}</TableCell>
-                          <TableCell className="text-xs text-center">
-                            {(() => {
-                              const lastWaypoint = selectedRoute.waypoints[selectedRoute.waypoints.length - 1];
-                              const percentage = lastWaypoint.totalTime > 0 ? Math.round((waypoint.totalTime / lastWaypoint.totalTime) * 100) : 0;
-                              return `${percentage}%`;
-                            })()}
-                          </TableCell>
-                          <TableCell className="text-xs text-center">{waypoint.hour}</TableCell>
-                          {/* Notes Column */}
                           <TableCell 
-                            className="w-48 min-w-48 max-w-48 note-cell group"
-                            onClick={() => editingWaypoint !== waypoint.id && setEditingWaypoint(waypoint.id)}
+                            className="w-40 min-w-40 max-w-40 note-cell group"
+                            onClick={() => !isRest && editingWaypoint !== waypoint.id && setEditingWaypoint(waypoint.id)}
                           >
-                            {editingWaypoint === waypoint.id ? (
+                            {isRest ? null : editingWaypoint === waypoint.id ? (
                               <Textarea
                                 value={waypoint.comments}
                                 onChange={(e) => updateWaypoint(waypoint.id, 'comments', e.target.value)}
-                                className="min-h-8 text-xs resize-none w-full"
+                                className="min-h-6 text-[10px] resize-none w-full"
                                 placeholder="Notes..."
                                 rows={3}
                                 onBlur={() => setEditingWaypoint(null)}
@@ -1700,62 +2301,91 @@ function App() {
                               />
                             ) : (
                               <div className="flex items-start gap-2 w-full">
-                                <div className="flex-1 text-xs break-words whitespace-pre-wrap break-all note-text">
+                                <div className="flex-1 break-words whitespace-pre-wrap break-all note-text">
                                   {waypoint.comments || (
                                     <span className="text-muted-foreground italic note-placeholder">No notes</span>
                                   )}
                                 </div>
-                                <Edit3 className="w-3 h-3 text-muted-foreground note-icon flex-shrink-0" />
+                                <Edit3 className="route-table-edit-icon w-3 h-3 text-muted-foreground note-icon flex-shrink-0" />
                               </div>
                             )}
                           </TableCell>
                         </TableRow>
-                          ))}
+                        )
+                      })}
                           
                           {/* Safety Time Row */}
                           {selectedRoute.waypoints.length > 0 && (
                             <TableRow className="bg-muted/20 font-medium">
-                              {/* Waypoint Column */}
-                              <TableCell className="w-40">
-                                <div className="text-xs font-medium text-center">
-                                  {t('safetyTime')} ({getEffectiveSettings(selectedRoute).safetyTimePercentage}%)
-                                </div>
+                              <TableCell
+                                className="route-table-section-col w-32 text-center font-medium group cursor-pointer"
+                                onClick={() => !editingSafetyTime && setEditingSafetyTime(true)}
+                              >
+                                {editingSafetyTime ? (
+                                  <div className="space-y-0.5">
+                                    <div>{t('safetyTime')}</div>
+                                    <div className="flex items-center justify-center gap-1">
+                                      <Input
+                                        type="number"
+                                        value={getEffectiveSettings(selectedRoute).safetyTimePercentage}
+                                        onChange={(e) => handleSafetyTimeChange(parseFloat(e.target.value) || 0)}
+                                        onBlur={() => setEditingSafetyTime(false)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter' || e.key === 'Escape') {
+                                            setEditingSafetyTime(false)
+                                          }
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="h-6 text-[10px] w-14 text-center"
+                                        min={0}
+                                        max={100}
+                                        step={1}
+                                        autoFocus
+                                      />
+                                      <span>%</span>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-0.5">
+                                    <div>{t('safetyTime')}</div>
+                                    <div className="flex items-center justify-center gap-1">
+                                      <span>{getEffectiveSettings(selectedRoute).safetyTimePercentage}%</span>
+                                      <Edit3 className="route-table-edit-icon w-2.5 h-2.5 text-muted-foreground flex-shrink-0" />
+                                    </div>
+                                  </div>
+                                )}
                               </TableCell>
-                              {/* Position Column - Empty */}
-                              <TableCell className="w-32"></TableCell>
-                              {/* Segment Column - Empty */}
+                              <TableCell className="w-10" />
+                              <TableCell className="route-table-rest-col w-10" />
+                              {visibleColumns.destinationCoords && (
+                                <TableCell className="w-32"></TableCell>
+                              )}
                               <TableCell></TableCell>
-                              {/* Route Column - Empty */}
-                              <TableCell></TableCell>
+                              {visibleColumns.routeDistance && (
+                                <TableCell></TableCell>
+                              )}
                               {/* Timing Columns - Show Safety Time */}
-                              <TableCell className="text-xs text-center font-medium">
-                                {(() => {
-                                  const lastWaypoint = selectedRoute.waypoints[selectedRoute.waypoints.length - 1];
-                                  const safetyTime = (lastWaypoint.totalTime * (getEffectiveSettings(selectedRoute).safetyTimePercentage / 100));
-                                  return formatTimeHoursMinutesForMin(safetyTime);
-                                })()}
+                              <TableCell className="text-center font-medium">
+                                {formatTimeHoursMinutesForMin(
+                                  routeEndTime * (getEffectiveSettings(selectedRoute).safetyTimePercentage / 100),
+                                )}
                               </TableCell>
                               <TableCell></TableCell>
-                              <TableCell></TableCell>
-                              <TableCell className="text-xs text-center font-medium">
-                                {(() => {
-                                  const lastWaypoint = selectedRoute.waypoints[selectedRoute.waypoints.length - 1];
-                                  const totalWithSafety = lastWaypoint.totalTime + (lastWaypoint.totalTime * (getEffectiveSettings(selectedRoute).safetyTimePercentage / 100));
-                                  return formatTimeHoursMinutesForMin(totalWithSafety);
-                                })()}
-                              </TableCell>
-                              <TableCell className="text-xs text-center font-medium">
-                                {(() => {
-                                  const safetyPercentage = getEffectiveSettings(selectedRoute).safetyTimePercentage;
-                                  return `${100 + safetyPercentage}%`;
-                                })()}
-                              </TableCell>
-                              <TableCell className="text-xs text-center font-medium">
-                                {(() => {
-                                  const lastWaypoint = selectedRoute.waypoints[selectedRoute.waypoints.length - 1];
-                                  const totalWithSafety = lastWaypoint.totalTime + (lastWaypoint.totalTime * (getEffectiveSettings(selectedRoute).safetyTimePercentage / 100));
-                                  return calculateArrivalTime(getEffectiveSettings(selectedRoute).startTime, totalWithSafety);
-                                })()}
+                              {visibleColumns.totalTime && (
+                                <TableCell className="text-center font-medium">
+                                  {formatTimeHoursMinutesForMin(
+                                    routeEndTime + routeEndTime * (getEffectiveSettings(selectedRoute).safetyTimePercentage / 100),
+                                  )}
+                                </TableCell>
+                              )}
+                              {visibleColumns.progression && (
+                                <TableCell></TableCell>
+                              )}
+                              <TableCell className="text-center font-medium">
+                                {calculateArrivalTime(
+                                  getEffectiveSettings(selectedRoute).startTime,
+                                  routeEndTime + routeEndTime * (getEffectiveSettings(selectedRoute).safetyTimePercentage / 100),
+                                )}
                               </TableCell>
                               {/* Notes Column - Empty */}
                               <TableCell></TableCell>
@@ -1765,412 +2395,25 @@ function App() {
                       </Table>
                 </div>
                 </div>
-              ) : (
-                <div className="py-12">
-                  <div className="text-center">
-                    <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {t('noRouteSelectedDesc')}
-                    </p>
-                    {!showRouteManager && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="btn-primary"
-                        onClick={() => handlePanelToggle('route-manager')}
-                        title="Show route manager"
-                      >
-                        <FolderOpen className="w-4 h-4 mr-2" />
-                        {t('routeManager')}
-                      </Button>
-                    )}
-                  </div>
-              </div>
-              )}
             </CardContent>
               </>
-            )}
-            {!selectedRoute && (
-              <CardContent>
-                <div className="py-12">
-                  <div className="text-center">
-                    <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-                    <p className="text-sm text-muted-foreground mb-4">
-                      {t('noRouteSelectedDesc')}
-                    </p>
-                    {!showRouteManager && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="btn-primary"
-                        onClick={() => handlePanelToggle('route-manager')}
-                        title="Show route manager"
-                      >
-                        <FolderOpen className="w-4 h-4 mr-2" />
-                        {t('routeManager')}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
             )}
           </Card>
           </div>
 
-              {/* Route Manager Panel */}
-              {showRouteManager && (
-                <div className="lg:w-1/3 lg:order-2">
-                  <Card className="shadow-mountain-lg">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>{t('routeManager')}</CardTitle>
-                  <CardDescription>{t('manageRoutes')}</CardDescription>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="btn-close"
-                  onClick={() => handlePanelToggle('route-manager')}
-                  title="Close panel"
-                >
-                  <X className="w-3 h-3" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {/* Route List */}
-              {routes.length > 0 && (
-                  <div className="space-y-2">
-                  <h3 className="text-sm font-semibold">{t('savedRoutes')}</h3>
-                  {routes.map(route => (
-                    <div
-                      key={route.id}
-                      className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
-                        selectedRoute?.id === route.id
-                          ? 'bg-primary/10 border-primary'
-                          : 'bg-card border-border hover:bg-gray-50'
-                      }`}
-                      onClick={() => setSelectedRoute(route)}
-                    >
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4" />
-                        <span className="text-sm font-medium truncate">{route.name}</span>
-                      </div>
-                      <div className="relative">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                          className={routeConfirmingDelete === route.id ? "btn-danger bg-red-100 border-red-300" : "btn-danger"}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                            handleDeleteRouteClick(route.id)
-                        }}
-                      >
-                          <Trash2 className="w-4 h-4" />
-                      </Button>
-                        {routeConfirmingDelete === route.id && (
-                          <div className="absolute right-0 top-0 -translate-y-full -translate-x-2 mb-2 p-4 bg-white border border-gray-200 text-gray-700 text-xs rounded-lg shadow-lg z-10 w-64">
-                            <div className="whitespace-normal mb-3">
-                              {t('deleteRouteMessage')}
-                            </div>
-                            <div className="flex gap-2 justify-end">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-6 px-2 text-xs bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  cancelDeleteRoute()
-                                }}
-                              >
-                                {t('cancel')}
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-6 px-2 text-xs btn-danger"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  confirmDeleteRoute(route.id)
-                                }}
-                              >
-                                <Trash2 className="w-3 h-3 mr-1" />
-                                {t('deleteRoute')}
-                              </Button>
-                            </div>
-                            <div className="absolute top-full right-6 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
-                            <div className="absolute top-full right-6 -mt-px w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-200"></div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-                {routes.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm">{t('noRoutes')}</p>
-                </div>
-              )}
-
-              {/* Add Route Section */}
-              <div className="mt-6">
-                <h3 className="text-sm font-semibold mb-3">{t('addRouteTitle')}</h3>
-                <p className="text-xs text-muted-foreground mb-4">
-                  {t('gpxFileExplanation')}
-                </p>
-                <div
-                  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all duration-200 hover:border-primary hover:bg-gray-50 ${
-                    isDragOver ? 'border-primary bg-gray-50' : 'border-border'
-                  }`}
-                  onDragEnter={handleDragEnter}
-                  onDragLeave={handleDragLeave}
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop}
-                >
-                  <Upload className={`w-12 h-12 mx-auto mb-3 transition-colors ${
-                    isDragOver ? 'text-primary' : 'text-muted-foreground'
-                  }`} />
-                  <h4 className={`text-sm font-semibold mb-2 transition-colors ${
-                    isDragOver ? 'text-primary' : ''
-                  }`}>
-                    {isDragOver ? t('dropGPXFileHere') : t('uploadGPXFile')}
-                  </h4>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    {t('dragDropZone')}
-                  </p>
-                  <label htmlFor="gpx-upload-panel">
-                    <Button variant="outline" size="sm" className="btn-primary" asChild>
-                      <div className="cursor-pointer">
-                        <Upload className="w-3 h-3 mr-2" />
-                        {t('selectFile')}
-                      </div>
-                    </Button>
-                    <Input
-                      id="gpx-upload-panel"
-                      type="file"
-                      accept=".gpx"
-                      onChange={handleFileInputChange}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-                </div>
-              )}
-
-              {/* General Settings Panel */}
-              {showSettings && (
-                <div className="lg:w-1/3 lg:order-2">
-                  <Card className="shadow-mountain-lg">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>{t('generalSettings')}</CardTitle>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="btn-close"
-                  onClick={() => handlePanelToggle('general-settings')}
-                  title="Close panel"
-                >
-                  <X className="w-3 h-3" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                {/* App Settings */}
-                <div className="settings-section">
-                  <h3 className="settings-section-title">{t('appSettings')}</h3>
-                  <div className="space-y-4">
-                  <div>
-                  <label className="text-sm font-medium mb-2 block">{t('language')}</label>
-                  <div className="relative">
-                    <select
-                      value={language}
-                      onChange={(e) => setLanguage(e.target.value)}
-                      className="appearance-none bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent w-full"
-                      title="Select language"
-                    >
-                      {Object.entries(languages).map(([code, lang]) => (
-                        <option key={code} value={code}>
-                          {lang.flag} {lang.name}
-                        </option>
-                      ))}
-                    </select>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2 pt-2 border-t border-border">
-                      <input
-                        type="checkbox"
-                        id="suppress-waypoint-warning"
-                        checked={settings.suppressWaypointModificationWarning || false}
-                        onChange={(e) => {
-                          const newSettings = { ...settings, suppressWaypointModificationWarning: e.target.checked };
-                          setSettings(newSettings);
-                          localStorage.setItem('mountainSettings', JSON.stringify(newSettings));
-                        }}
-                        className="w-4 h-4"
-                      />
-                      <label
-                        htmlFor="suppress-waypoint-warning"
-                        className="text-sm font-medium leading-none cursor-pointer"
-                      >
-                        {t('suppressWaypointModificationWarning')}
-                      </label>
-                  </div>
-                </div>
-                    </div>
-
-                {/* Default Route Settings */}
-                <div className="settings-section">
-                  <h3 className="settings-section-title">{t('defaultRouteConfiguration')}</h3>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    {t('defaultValuesExplanation')}
-                  </p>
-                  
-                  {/* Start Time */}
-                  <div className="mb-4">
-                          <label className="text-sm font-medium">{t('startTime')}</label>
-                            <Input
-                            type="time"
-                            value={settings.startTime}
-                            onChange={(e) => updateDefaultSettings('startTime', e.target.value)}
-                      className="settings-input"
-                          />
-                        </div>
-
-                  {/* Safety Time */}
-                  <div className="mb-4">
-                    <label className="text-sm font-medium">{t('safetyTime')}</label>
-                    <Input
-                      type="number"
-                      value={settings.safetyTimePercentage}
-                      onChange={(e) => updateDefaultSettings('safetyTimePercentage', parseFloat(e.target.value) || 0)}
-                      step="1"
-                      min="0"
-                      max="100"
-                      className="settings-input"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t('additionalTimeBuffer')}
-                    </p>
-                  </div>
-
-                  {/* Distance Calculation Method */}
-                  <div className="mb-4">
-                          <label className="text-sm font-medium">{t('distanceCalculation')}</label>
-                          <select
-                            value={settings.distanceCalculationMethod}
-                            onChange={(e) => updateDefaultSettings('distanceCalculationMethod', e.target.value)}
-                            className="mt-1 w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
-                          >
-                            <option value="track">{t('trackBased')}</option>
-                            <option value="waypoint-to-waypoint">{t('waypointToWaypoint')}</option>
-                          </select>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {settings.distanceCalculationMethod === 'track' 
-                              ? 'Uses actual track path for accurate distances'
-                              : 'Uses straight-line distance between waypoints'
-                            }
-                          </p>
-                        </div>
-
-                  {/* Activity Mode and Speed Settings */}
-                        <div>
-                    <h4 className="text-sm font-medium mb-4">{t('speeds')}</h4>
-                    
-                    {/* Activity Mode Selector */}
-                    <div className="mb-4">
-                      <div className="relative">
-                        <select
-                          value={settings.activityMode}
-                          onChange={(e) => updateDefaultSettings('activityMode', e.target.value)}
-                          className="appearance-none bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent w-full"
-                          title="Select activity mode"
-                        >
-                          <option value="hiking">🥾 {t('hiking')}</option>
-                          <option value="snowshoes">❄️ {t('snowshoes')}</option>
-                          <option value="skiTouring">🎿 {t('skiTouring')}</option>
-                        </select>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Default speeds for new routes (m/h)
-                      </p>
-                    </div>
-                    
-                    {/* Speed Settings in 3 columns */}
-                    <div className="grid grid-cols-3 gap-3">
-                    <div>
-                        <label className="text-xs text-muted-foreground">Ascent</label>
-                          <Input
-                            type="number"
-                        value={getCurrentSpeeds().ascentSpeed}
-                        onChange={(e) => updateDefaultSettings('ascentSpeed', parseFloat(e.target.value))}
-                        step="10"
-                        className="settings-input"
-                      />
-                        </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground">Descent</label>
-                      <Input
-                        type="number"
-                        value={getCurrentSpeeds().descentSpeed}
-                        onChange={(e) => updateDefaultSettings('descentSpeed', parseFloat(e.target.value))}
-                        step="10"
-                        className="settings-input"
-                      />
-                  </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground">Flat</label>
-                      <Input
-                        type="number"
-                        value={getCurrentSpeeds().flatSpeed}
-                        onChange={(e) => updateDefaultSettings('flatSpeed', parseFloat(e.target.value))}
-                        step="100"
-                        className="settings-input"
-                      />
-                    </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Clean All Data Button */}
-                <div className="pt-4 border-t border-border">
-                  <Button
-                    variant="outline"
-                    className="w-full btn-danger"
-                    onClick={() => setShowCleanDataDialog(true)}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    {t('cleanAllData')}
-                  </Button>
-                </div>
-              </CardContent>
-                  </Card>
-                </div>
-              )}
-
               {/* Route Settings Panel */}
               {showRouteSettings && selectedRoute && (
                 <div className="lg:w-1/3 lg:order-2">
-                  <Card className="shadow-mountain-lg">
+                  <Card className="route-config-panel shadow-mountain-lg text-[11px]">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>{t('routeConfiguration')}</CardTitle>
+                    <CardTitle className="text-sm font-semibold">{t('routeConfiguration')}</CardTitle>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="btn-close"
+                    className="btn-close h-7 w-7"
                     onClick={() => handlePanelToggle('route-settings')}
                     title="Close panel"
                   >
@@ -2178,171 +2421,322 @@ function App() {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Route Settings */}
-                <div className="settings-section">
-                  
-                  {/* Start Time and Safety Time - Side by Side */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    {/* Start Time */}
-                    <div>
-                      <label className="text-sm font-medium">{t('startTime')}</label>
-                      <Input
-                        type="time"
-                        value={getEffectiveSettings(selectedRoute).startTime}
-                        onChange={(e) => updateRouteSettings('startTime', e.target.value)}
-                        className="settings-input"
-                      />
+              <CardContent className="route-config-panel__content">
+                <RouteConfigSection title={t('distanceCalculation')} icon={Route}>
+                  <div>
+                    <div className="flex items-center gap-0.5 mb-0.5">
+                      <label className="text-[10px] font-medium leading-none">{t('formula')}</label>
+                      <DistanceFormulaHelpTooltip t={t} />
                     </div>
-
-                    {/* Safety Time */}
-                    <div>
-                      <label className="text-sm font-medium">{t('safetyTimeLabel')}</label>
-                      <Input
-                        type="number"
-                        value={getEffectiveSettings(selectedRoute).safetyTimePercentage}
-                        onChange={(e) => updateRouteSettings('safetyTimePercentage', parseFloat(e.target.value) || 0)}
-                        step="1"
-                        min="0"
-                        max="100"
-                        className="settings-input"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Additional time buffer as percentage of total route time
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Distance Calculation Method */}
-                  <div className="mb-4">
-                    <label className="text-sm font-medium">{t('distanceCalculation')}</label>
                     <select
                       value={getEffectiveSettings(selectedRoute).distanceCalculationMethod}
-                      onChange={(e) => updateRouteSettings('distanceCalculationMethod', e.target.value)}
-                      className="settings-input w-full px-3 py-2 border border-input bg-background rounded-md text-sm"
+                      onChange={(e) => {
+                        const method = e.target.value
+                        if (method !== 'track') {
+                          setShowAdvancedTrackOptions(false)
+                        }
+                        updateRouteSettings('distanceCalculationMethod', method)
+                      }}
+                      className="settings-input w-full border border-input bg-background rounded-md"
                     >
                       <option value="track">{t('trackBased')}</option>
                       <option value="waypoint-to-waypoint">{t('waypointToWaypoint')}</option>
                     </select>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {getEffectiveSettings(selectedRoute).distanceCalculationMethod === 'track' 
-                        ? t('trackBasedDesc')
-                        : t('waypointToWaypointDesc')
+                  </div>
+                    {getEffectiveSettings(selectedRoute).distanceCalculationMethod === 'track' && (
+                      <div className="route-config-subsection">
+                        <label className="flex items-center gap-1.5 cursor-pointer">
+                          <Checkbox
+                            checked={showAdvancedTrackOptions}
+                            onCheckedChange={(checked) => setShowAdvancedTrackOptions(checked === true)}
+                            className="h-3.5 w-3.5"
+                          />
+                          <span className="text-[10px]">{t('showAdvancedOptions')}</span>
+                        </label>
+                        {showAdvancedTrackOptions && (
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <div className="flex items-center gap-0.5 min-h-[14px]">
+                                <label className="text-[10px] font-medium leading-none">{t('resampling')}</label>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      type="button"
+                                      className="inline-flex text-muted-foreground hover:text-foreground"
+                                      aria-label={t('resampleSpacingTip')}
+                                    >
+                                      <CircleHelp className="w-3 h-3" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-[200px] text-[11px] leading-snug">
+                                    {t('resampleSpacingTip')}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                              <Input
+                                type="number"
+                                min={1}
+                                max={50}
+                                step={1}
+                                value={getEffectiveSettings(selectedRoute).resampleSpacingM ?? 3}
+                                onChange={(e) =>
+                                  updateRouteSettings('resampleSpacingM', parseFloat(e.target.value) || 3)
+                                }
+                                className="settings-input"
+                                title={t('resampleSpacing')}
+                              />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-0.5 min-h-[14px]">
+                                <label className="text-[10px] font-medium leading-none">{t('smoothing')}</label>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      type="button"
+                                      className="inline-flex text-muted-foreground hover:text-foreground"
+                                      aria-label={t('smoothWindowTip')}
+                                    >
+                                      <CircleHelp className="w-3 h-3" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-[200px] text-[11px] leading-snug">
+                                    {t('smoothWindowTip')}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                              <Input
+                                type="number"
+                                min={1}
+                                max={200}
+                                step={1}
+                                value={getEffectiveSettings(selectedRoute).smoothWindowM ?? 15}
+                                onChange={(e) =>
+                                  updateRouteSettings('smoothWindowM', parseFloat(e.target.value) || 15)
+                                }
+                                className="settings-input"
+                                title={t('smoothWindow')}
+                              />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-0.5 min-h-[14px]">
+                                <label className="text-[10px] font-medium leading-none">{t('deadband')}</label>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      type="button"
+                                      className="inline-flex text-muted-foreground hover:text-foreground"
+                                      aria-label={t('elevationDeadbandTip')}
+                                    >
+                                      <CircleHelp className="w-3 h-3" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="max-w-[200px] text-[11px] leading-snug">
+                                    {t('elevationDeadbandTip')}
+                                  </TooltipContent>
+                                </Tooltip>
+                              </div>
+                              <Input
+                                type="number"
+                                min={0}
+                                max={20}
+                                step={0.5}
+                                value={getEffectiveSettings(selectedRoute).elevationDeadbandM ?? 2}
+                                onChange={(e) =>
+                                  updateRouteSettings('elevationDeadbandM', parseFloat(e.target.value) || 0)
+                                }
+                                className="settings-input"
+                                title={t('elevationDeadband')}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                </RouteConfigSection>
+
+                <RouteConfigSection title={t('timeCalculation')} icon={Timer}>
+                  <div>
+                    <div className="flex items-center gap-0.5 mb-0.5">
+                      <label className="text-[10px] font-medium leading-none">{t('formula')}</label>
+                      <TimeFormulaHelpTooltip t={t} />
+                    </div>
+                    <select
+                      value={
+                        getEffectiveSettings(selectedRoute).timeCalculationMethod ??
+                        DEFAULT_TIME_CALCULATION_METHOD
                       }
-                    </p>
-                </div>
-                
-                  {/* Activity Mode and Speed Settings */}
-                <div>
-                    <h4 className="text-sm font-medium mb-4">{t('speeds')}</h4>
-                  
-                  {/* Activity Mode Selector */}
-                  <div className="mb-4">
-                    <div className="relative">
-                      <select
-                        value={getEffectiveSettings(selectedRoute).activityMode || settings.activityMode}
-                        onChange={(e) => {
-                          const currentMode = getEffectiveSettings(selectedRoute).activityMode || settings.activityMode
-                          if (e.target.value !== currentMode) {
-                            handleActivityModeChange(e.target.value)
-                          }
-                        }}
-                        className="appearance-none bg-background border border-input rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent w-full"
-                        title="Select activity mode for this route"
-                      >
-                        <option value="hiking">🥾 {t('hiking')}</option>
-                        <option value="snowshoes">❄️ {t('snowshoes')}</option>
-                        <option value="skiTouring">🎿 {t('skiTouring')}</option>
-                      </select>
-                      {activityModeChangePending && (
-                        <div className="absolute left-0 top-0 -translate-y-full -translate-x-2 mb-2 p-4 bg-white border border-gray-200 text-gray-700 text-xs rounded-lg shadow-lg z-10 w-80">
-                          <div className="whitespace-normal mb-3">
-                            {t('activityModeChangeMessage')}
-                      </div>
-                          <div className="flex gap-2 justify-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                              className="h-6 px-2 text-xs bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                cancelActivityModeChange()
-                              }}
-                            >
-                              {t('cancel')}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-6 px-2 text-xs btn-primary"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                confirmActivityModeChange()
-                              }}
-                            >
-                              <span className="mr-1">✅</span>
-                              {t('confirmActivityModeChange')}
-                  </Button>
+                      onChange={(e) => updateRouteSettings('timeCalculationMethod', e.target.value)}
+                      className="settings-input w-full border border-input bg-background rounded-md"
+                    >
+                      <option value={TIME_CALCULATION_METHODS.ADDITIVE}>{t('timeMethodAdditive')}</option>
+                      <option value={TIME_CALCULATION_METHODS.ACTIVITY_BLEND}>
+                        {t('timeMethodActivityBlend')}
+                      </option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-0.5">
+                      <label className="text-[10px] font-medium leading-none">{t('activitySpeed')}</label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            className="inline-flex text-muted-foreground hover:text-foreground"
+                            aria-label={t('activitySpeedDesc')}
+                          >
+                            <CircleHelp className="w-3 h-3" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[220px] text-[11px] leading-snug">
+                          {t('activitySpeedDesc')}
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
-                          <div className="absolute top-full left-6 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
-                          <div className="absolute top-full left-6 -mt-px w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-200"></div>
-                      </div>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      Speeds for this route (m/h)
-                    </p>
-                      </div>
-                  
-                  {/* Speed Settings in 3 columns */}
-                  <div className="grid grid-cols-3 gap-3">
+                    <select
+                      value={getEffectiveSettings(selectedRoute).activityMode || DEFAULT_ACTIVITY_MODE}
+                      onChange={(e) => {
+                        const currentMode =
+                          getEffectiveSettings(selectedRoute).activityMode || DEFAULT_ACTIVITY_MODE
+                        if (e.target.value !== currentMode) {
+                          updateRouteSettings('activityMode', e.target.value)
+                        }
+                      }}
+                      className="settings-input w-full border border-input bg-background rounded-md"
+                    >
+                      <option value="hiking">🥾 {t('hiking')}</option>
+                      <option value="snowshoes">❄️ {t('snowshoes')}</option>
+                      <option value="skiTouring">🎿 {t('skiTouring')}</option>
+                    </select>
+                  </div>
+
+                  <div
+                    className={`grid gap-2 ${
+                      (getEffectiveSettings(selectedRoute).timeCalculationMethod ??
+                        DEFAULT_TIME_CALCULATION_METHOD) === TIME_CALCULATION_METHODS.ACTIVITY_BLEND
+                        ? 'grid-cols-4'
+                        : 'grid-cols-3'
+                    }`}
+                  >
                         <div>
-                      <label className="text-xs text-muted-foreground">Ascent</label>
+                      <label className="text-[10px] text-muted-foreground">{t('ascentSpeedLabel')}</label>
                     <Input
                       type="number"
                       value={getEffectiveSettings(selectedRoute).ascentSpeed}
-                      onChange={(e) => updateRouteSettings('ascentSpeed', parseFloat(e.target.value))}
+                      onChange={(e) => {
+                        const n = parseFloat(e.target.value)
+                        if (isFinite(n) && n > 0) updateRouteSettings('ascentSpeed', n)
+                      }}
                       step="10"
                       className="settings-input"
                     />
                         </div>
                         <div>
-                      <label className="text-xs text-muted-foreground">Descent</label>
+                      <label className="text-[10px] text-muted-foreground">{t('descentSpeedLabel')}</label>
                     <Input
                       type="number"
                       value={getEffectiveSettings(selectedRoute).descentSpeed}
-                      onChange={(e) => updateRouteSettings('descentSpeed', parseFloat(e.target.value))}
+                      onChange={(e) => {
+                        const n = parseFloat(e.target.value)
+                        if (isFinite(n) && n > 0) updateRouteSettings('descentSpeed', n)
+                      }}
                       step="10"
                       className="settings-input"
                     />
                         </div>
                         <div>
-                      <label className="text-xs text-muted-foreground">Flat</label>
+                      <label className="text-[10px] text-muted-foreground">{t('flatSpeedLabel')}</label>
                     <Input
                       type="number"
                       value={getEffectiveSettings(selectedRoute).flatSpeed}
-                      onChange={(e) => updateRouteSettings('flatSpeed', parseFloat(e.target.value))}
+                      onChange={(e) => {
+                        const n = parseFloat(e.target.value)
+                        if (isFinite(n) && n > 0) updateRouteSettings('flatSpeed', n)
+                      }}
                       step="100"
                       className="settings-input"
                     />
                           </div>
+                        {(getEffectiveSettings(selectedRoute).timeCalculationMethod ??
+                          DEFAULT_TIME_CALCULATION_METHOD) === TIME_CALCULATION_METHODS.ACTIVITY_BLEND && (
+                          <div>
+                            <div className="flex items-center gap-0.5 min-h-[14px]">
+                              <label className="text-[10px] text-muted-foreground leading-none">
+                                {t('downhillFactor')}
+                              </label>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    className="inline-flex text-muted-foreground hover:text-foreground"
+                                    aria-label={t('downhillFactorTip')}
+                                  >
+                                    <CircleHelp className="w-3 h-3" />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-[200px] text-[11px] leading-snug">
+                                  {t('downhillFactorTip')}
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                            <Input
+                              type="number"
+                              min={0.1}
+                              max={2}
+                              step={0.01}
+                              value={getEffectiveSettings(selectedRoute).downhillFactor ?? 2 / 3}
+                              onChange={(e) =>
+                                updateRouteSettings('downhillFactor', parseFloat(e.target.value) || 2 / 3)
+                              }
+                              className="settings-input"
+                            />
+                          </div>
+                        )}
                         </div>
-                        
-                        <p className="text-xs text-muted-foreground mt-3">
-                          {t('segmentTimeFormula')}
-                        </p>
-                  </div>
-                </div>
-                
-                {/* Route Log Section */}
+                </RouteConfigSection>
+
+                <RouteConfigSection title={t('columns')} icon={Columns3}>
+                    <p className="text-[10px] text-muted-foreground leading-snug">{t('columnsDesc')}</p>
+                    <div className="space-y-1">
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <Checkbox
+                          checked={visibleColumns.destinationCoords}
+                          onCheckedChange={() => toggleColumnVisibility('destinationCoords')}
+                          className="h-3.5 w-3.5"
+                        />
+                        <span className="text-[11px]">{t('destinationCoords')}</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <Checkbox
+                          checked={visibleColumns.routeDistance}
+                          onCheckedChange={() => toggleColumnVisibility('routeDistance')}
+                          className="h-3.5 w-3.5"
+                        />
+                        <span className="text-[11px]">{t('routeDistance')}</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <Checkbox
+                          checked={visibleColumns.totalTime}
+                          onCheckedChange={() => toggleColumnVisibility('totalTime')}
+                          className="h-3.5 w-3.5"
+                        />
+                        <span className="text-[11px]">{t('totalTiming')}</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <Checkbox
+                          checked={visibleColumns.progression}
+                          onCheckedChange={() => toggleColumnVisibility('progression')}
+                          className="h-3.5 w-3.5"
+                        />
+                        <span className="text-[11px]">{t('progression')}</span>
+                      </label>
+                    </div>
+                </RouteConfigSection>
+
                 {selectedRoute && (
-                <div className="pt-4 border-t border-border">
-                    <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
-                      <Clock className="w-4 h-4" />
-                      Route Activity Log
-                    </h3>
+                <RouteConfigSection title={t('routeActivityLog')} icon={Clock}>
                     {selectedRoute.log && selectedRoute.log.length > 0 ? (
-                      <div className="max-h-64 overflow-y-auto space-y-2 pr-2">
+                      <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
                         {selectedRoute.log.map((logEntry, index) => {
                           const date = new Date(logEntry.timestamp);
                           const formattedDate = date.toLocaleDateString();
@@ -2351,20 +2745,20 @@ function App() {
                           let icon, bgColor, textColor, borderColor;
                           switch (logEntry.type) {
                             case 'warning':
-                              icon = <AlertTriangle className="w-4 h-4" />;
+                              icon = <AlertTriangle className="w-3 h-3" />;
                               bgColor = 'bg-yellow-50 dark:bg-yellow-900/20';
                               textColor = 'text-yellow-800 dark:text-yellow-200';
                               borderColor = 'border-yellow-200 dark:border-yellow-800';
                               break;
                             case 'error':
                             case 'danger':
-                              icon = <AlertCircle className="w-4 h-4" />;
+                              icon = <AlertCircle className="w-3 h-3" />;
                               bgColor = 'bg-red-50 dark:bg-red-900/20';
                               textColor = 'text-red-800 dark:text-red-200';
                               borderColor = 'border-red-200 dark:border-red-800';
                               break;
                             default:
-                              icon = <Info className="w-4 h-4" />;
+                              icon = <Info className="w-3 h-3" />;
                               bgColor = 'bg-blue-50 dark:bg-blue-900/20';
                               textColor = 'text-blue-800 dark:text-blue-200';
                               borderColor = 'border-blue-200 dark:border-blue-800';
@@ -2373,7 +2767,7 @@ function App() {
                           return (
                             <div
                               key={index}
-                              className={`p-3 rounded-lg border ${bgColor} ${borderColor} ${textColor} text-sm`}
+                              className={`p-2 rounded-md border ${bgColor} ${borderColor} ${textColor} text-[10px]`}
                             >
                               <div className="flex items-start gap-2 mb-1">
                                 <div className="mt-0.5">{icon}</div>
@@ -2430,317 +2824,32 @@ function App() {
                         })}
                       </div>
                     ) : (
-                      <p className="text-xs text-muted-foreground text-center py-4">
-                        No activity log entries yet
+                      <p className="text-[10px] text-muted-foreground text-center py-3">
+                        {t('noActivityLogEntries')}
                       </p>
                     )}
-                  </div>
+                </RouteConfigSection>
                 )}
-                
-                {/* Exports Section */}
-                <div className="pt-4 border-t border-border">
-                  <h3 className="text-sm font-semibold mb-4 text-foreground">{t('exports')}</h3>
-                  <div className="space-y-4">
-                    {/* GPX Export */}
-                    <div className="group relative p-4 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                            <Download className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h4 className="text-sm font-medium text-foreground">{t('exportGPX')}</h4>
-                              {selectedRoute && (() => {
-                                const modifications = checkWaypointModifications(selectedRoute);
-                                if (modifications.modified) {
-                                  const totalModifications = modifications.added + modifications.removed + modifications.renamed;
-                                  return (
-                                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800">
-                                      {totalModifications}
-                                    </Badge>
-                                  );
-                                }
-                                return null;
-                              })()}
-                            </div>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
-                              {t('exportGPXDesc')}
-                            </p>
-                            {selectedRoute && (() => {
-                              const modifications = checkWaypointModifications(selectedRoute);
-                              if (modifications.modified) {
-                                const modificationDetails = [];
-                                if (modifications.added > 0) modificationDetails.push(`${modifications.added} ${t('added')}`);
-                                if (modifications.removed > 0) modificationDetails.push(`${modifications.removed} ${t('removed')}`);
-                                if (modifications.renamed > 0) modificationDetails.push(`${modifications.renamed} ${t('renamed')}`);
-                                return (
-                                  <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-1.5 font-medium">
-                                    {modificationDetails.join(', ')}
-                                  </p>
-                                );
-                              }
-                              return null;
-                            })()}
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-shrink-0"
-                          onClick={handleExportGPX}
-                          disabled={!selectedRoute}
-                        >
-                          <FileDown className="w-4 h-4 mr-1.5" />
-                          {t('export')}
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    {/* PDF Export */}
-                    <div className="group relative p-4 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
-                            <FileText className="w-5 h-5 text-red-600 dark:text-red-400" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-medium text-foreground mb-1">{t('exportPDF')}</h4>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
-                              {t('exportPDFDesc')}
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-shrink-0"
-                          onClick={handleExportPDF}
-                          disabled={!selectedRoute}
-                        >
-                          <FileDown className="w-4 h-4 mr-1.5" />
-                          {t('export')}
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    {/* CSV Export */}
-                    <div className="group relative p-4 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-green-50 dark:bg-green-900/20 flex items-center justify-center">
-                            <FileSpreadsheet className="w-5 h-5 text-green-600 dark:text-green-400" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-medium text-foreground mb-1">{t('exportCSV')}</h4>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
-                              {t('exportCSVDesc')}
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="flex-shrink-0"
-                          onClick={handleExportCSV}
-                          disabled={!selectedRoute}
-                        >
-                          <FileDown className="w-4 h-4 mr-1.5" />
-                          {t('export')}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           </div>
         )}
 
-              {/* Help Panel */}
-              {showHelp && (
+              {showRouteExports && selectedRoute && (
                 <div className="lg:w-1/3 lg:order-2">
-                  <Card className="shadow-mountain-lg">
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <CardTitle>{t('help')}</CardTitle>
-                          <CardDescription>
-                            {t('technicalDetailsDesc')}
-                          </CardDescription>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="btn-close"
-                          onClick={() => handlePanelToggle('help')}
-                          title="Close panel"
-                        >
-                          <X className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-6">
-                        {/* How It Works */}
-                        <div>
-                          <h4 className="text-sm font-semibold mb-3">{t('howItWorks')}</h4>
-                          <div className="space-y-3 text-sm text-muted-foreground">
-                            <p>
-                              {t('howItWorksDesc')}{' '}
-                              <a 
-                                href="https://gpx.studio" 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-primary hover:underline font-medium"
-                              >
-                                https://gpx.studio
-                              </a>
-                              {' '}{t('howItWorksDesc2')}
-                            </p>
-                            
-                            <div className="pt-2 border-t border-border">
-                              <p className="font-medium text-foreground mb-2">{t('whatIsGPX')}</p>
-                              <p className="text-xs">{t('whatIsGPXDesc')}</p>
-                            </div>
-                            
-                            <div className="pt-2 border-t border-border">
-                              <p className="font-medium text-foreground mb-2">{t('whatThisToolDoes')}</p>
-                              <p className="text-xs mb-2">{t('whatThisToolDoesDesc')}</p>
-                              <ul className="text-xs space-y-1 list-disc list-inside pl-2">
-                                <li>{t('plannerFeature1')}</li>
-                                <li>{t('plannerFeature2')}</li>
-                                <li>{t('plannerFeature3')}</li>
-                                <li>{t('plannerFeature4')}</li>
-                                <li>{t('plannerFeature5')}</li>
-                                <li>{t('plannerFeature6')}</li>
-                                <li>{t('plannerFeature7')}</li>
-                              </ul>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Other Tools */}
-                        <div>
-                          <h4 className="text-sm font-medium mb-3">{t('otherTools')}</h4>
-                          <div className="space-y-3 text-sm">
-                            <div>
-                              <span className="text-muted-foreground">{t('otherToolsDesc')}</span>
-                            </div>
-                            <div className="space-y-2">
-                              <div>
-                                <a 
-                                  href="https://wikiloc.com" 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 underline font-medium"
-                                >
-                                  {t('wikiloc')}
-                                </a>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {t('wikilocDesc')}
-                                </div>
-                              </div>
-                              <div>
-                                <a 
-                                  href="https://gpx.studio" 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 underline font-medium"
-                                >
-                                  {t('gpxStudio')}
-                                </a>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {t('gpxStudioDesc')}
-                                </div>
-                              </div>
-                              <div>
-                                <a 
-                                  href="https://www.gpsvisualizer.com/profile_input" 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 underline font-medium"
-                                >
-                                  {t('gpsVisualizer')}
-                                </a>
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  {t('gpsVisualizerDesc')}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Support */}
-                        <div>
-                          <h4 className="text-sm font-medium mb-3">{t('support')}</h4>
-                          <div className="space-y-2 text-sm">
-                            <div>
-                              <span className="text-muted-foreground">{t('reportIssues')}</span>
-                            </div>
-                            <a 
-                              href="https://github.com/Campano/gpx-route-planner/issues" 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 underline"
-                            >
-                              {t('githubIssuesPage')}
-                            </a>
-                          </div>
-                        </div>
-
-                        {/* Donate Section */}
-                        <div>
-                          <h4 className="text-sm font-medium mb-3">{t('donateDesc')}</h4>
-                          <div className="space-y-2 text-sm">
-                            <p className="text-muted-foreground">
-                              {t('donateMessage')}
-                            </p>
-                            <a 
-                              href="https://github.com/sponsors/Campano" 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 underline font-medium"
-                            >
-                              {t('donate')}
-                            </a>
-                          </div>
-                        </div>
-
-                        {/* About */}
-                        <div>
-                          <h4 className="text-sm font-medium mb-3">{t('about')}</h4>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">{t('version')}:</span>
-                              <span className="font-mono">{packageJson.version}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">{t('built')}:</span>
-                              <span className="font-mono">{new Date().toLocaleDateString()}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">{t('author')}:</span>
-                              <span className="font-mono">Simón Campano</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">{t('license')}:</span>
-                              <a 
-                                href="https://creativecommons.org/licenses/by-nc-sa/4.0/"
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="font-mono text-blue-600 hover:text-blue-800 underline"
-                              >
-                                CC BY-NC-SA 4.0
-                              </a>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                  <RouteExportsPanel
+                    selectedRoute={selectedRoute}
+                    t={t}
+                    onClose={() => handlePanelToggle('route-exports')}
+                    onExportGPX={handleExportGPX}
+                    onExportPDF={handleExportPDF}
+                    onExportCSV={handleExportCSV}
+                  />
                 </div>
               )}
+
+          </>
+          )}
         </div>
       </div>
       

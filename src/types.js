@@ -26,7 +26,7 @@
  * @property {number} totalAscent - Cumulative elevation gain from route start in meters
  * @property {number} totalDescent - Cumulative elevation loss from route start in meters
  * @property {number} terrainDifficultyPenalty - Percentage penalty for terrain difficulty (e.g., 0.1 for 10% slower)
- * @property {number} stopDuration - Duration of a stop at this waypoint in minutes
+ * @property {Array<{id: string, durationMinutes: number}>} rests - Rest stops after arriving at this waypoint
  * @property {number} segmentTime - Estimated time for this segment in minutes
  * @property {number} totalTime - Cumulative time from route start in minutes
  * @property {number} timeTillArrival - Time remaining until arrival at this waypoint in minutes

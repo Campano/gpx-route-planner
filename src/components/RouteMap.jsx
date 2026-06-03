@@ -6,10 +6,28 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
 
+const PIN_WIDTH = 25
+const PIN_HEIGHT = 41
+const LABEL_GAP_PX = 6
+
+/** Pin tip at lat/lng; tooltip anchor at top center of icon (Leaflet default anchor is off-center). */
+const waypointMapIcon = new L.Icon({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+  iconSize: [PIN_WIDTH, PIN_HEIGHT],
+  iconAnchor: [PIN_WIDTH / 2, PIN_HEIGHT],
+  popupAnchor: [0, -PIN_HEIGHT],
+  tooltipAnchor: [0, -PIN_HEIGHT],
+})
+
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
   iconUrl: markerIcon,
-  shadowUrl: markerShadow
+  shadowUrl: markerShadow,
+  iconSize: [PIN_WIDTH, PIN_HEIGHT],
+  iconAnchor: [PIN_WIDTH / 2, PIN_HEIGHT],
+  tooltipAnchor: [0, -PIN_HEIGHT],
 })
 
 L.Icon.Default.imagePath = ''
@@ -180,6 +198,7 @@ const RouteMap = ({ route, onAddWaypoint, onRemoveWaypoint, getWaypointDisplayNa
           <Marker
             key={wp.id}
             position={[wp.latitude, wp.longitude]}
+            icon={waypointMapIcon}
             eventHandlers={
               onRemoveWaypoint && canRemove
                 ? {
@@ -188,16 +207,14 @@ const RouteMap = ({ route, onAddWaypoint, onRemoveWaypoint, getWaypointDisplayNa
                 : undefined
             }
           >
-            <Tooltip direction="top" offset={[0, -10]}>
-              <div className="space-y-1">
-                <div className="font-medium">{displayName}</div>
-                {wp.elevation != null && (
-                  <div className="text-xs">Elevation: {wp.elevation.toFixed(0)} m</div>
-                )}
-                <div className="text-[10px] text-muted-foreground">
-                  {canRemove ? 'Click to remove' : 'Fixed point'}
-                </div>
-              </div>
+            <Tooltip
+              permanent
+              direction="top"
+              offset={[0, -LABEL_GAP_PX]}
+              className="waypoint-map-label"
+              interactive={false}
+            >
+              {displayName}
             </Tooltip>
           </Marker>
         )

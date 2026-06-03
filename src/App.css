@@ -405,21 +405,96 @@
     display: block !important;
   }
   
-  /* Table styling for print */
-  table {
+  /* Map is interactive-only */
+  .route-map-print-hide {
+    display: none !important;
+  }
+
+  /* Table wrapper: avoid horizontal clip on paper */
+  .route-table-print-wrap,
+  [data-slot="table-container"] {
+    overflow: visible !important;
+  }
+
+  /* Waypoint table: fit page width */
+  .route-waypoint-table {
+    table-layout: fixed !important;
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 0 !important;
+    font-size: 8px !important;
+  }
+
+  .route-waypoint-table th,
+  .route-waypoint-table td {
+    border: 1px solid #000 !important;
+    padding: 2px 3px !important;
+    font-size: 8px !important;
+    vertical-align: middle !important;
+    word-wrap: break-word !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .route-waypoint-table th {
+    background-color: #f0f0f0 !important;
+    font-weight: bold !important;
+    text-align: center !important;
+  }
+
+  /* Section column: cap width so the full table fits */
+  .route-waypoint-table .route-table-section-col {
+    width: 18% !important;
+    max-width: 18% !important;
+    min-width: 0 !important;
+    text-align: left !important;
+  }
+
+  .route-waypoint-table .route-table-section-col > div {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: auto !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    cursor: default !important;
+  }
+
+  .route-waypoint-table .route-table-section-col span {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: unset !important;
+  }
+
+  /* Rest controls column is interactive-only */
+  .route-waypoint-table .route-table-rest-col {
+    display: none !important;
+  }
+
+  /* Edit pencil affordances */
+  .route-waypoint-table .route-table-edit-icon {
+    display: none !important;
+  }
+
+  .route-waypoint-table .note-cell .flex {
+    gap: 0 !important;
+  }
+
+  /* Generic table fallback (non-waypoint tables) */
+  table:not(.route-waypoint-table) {
     width: 100% !important;
     border-collapse: collapse !important;
     margin: 0 !important;
   }
-  
-  th, td {
+
+  table:not(.route-waypoint-table) th,
+  table:not(.route-waypoint-table) td {
     border: 1px solid #000 !important;
     padding: 6px !important;
     font-size: 11px !important;
     text-align: left !important;
   }
-  
-  th {
+
+  table:not(.route-waypoint-table) th {
     background-color: #f0f0f0 !important;
     font-weight: bold !important;
   }
@@ -565,5 +640,69 @@ button {
 
 .settings-input {
   @apply mt-1 bg-background;
+}
+
+.route-config-panel [data-slot="card-header"] {
+  @apply py-3 px-4;
+}
+
+.route-config-panel [data-slot="card-content"],
+.route-config-panel__content {
+  @apply px-4 py-3;
+}
+
+.route-config-panel__content {
+  @apply flex flex-col gap-3;
+}
+
+.route-config-panel .settings-section {
+  @apply p-2.5 rounded-md;
+}
+
+.route-config-panel .settings-input {
+  @apply mt-0.5 h-7 text-[11px] px-2 py-1;
+}
+
+.route-config-panel select.settings-input {
+  @apply h-7;
+}
+
+.route-config-section__title {
+  @apply text-[11px] font-medium mb-1 flex items-center gap-1.5 text-foreground;
+}
+
+.route-config-section__body {
+  @apply rounded-md border border-border bg-muted/25 p-2.5 flex flex-col gap-2;
+}
+
+.route-config-section__body .route-config-subsection {
+  @apply pt-2 mt-0.5 border-t border-border/80 flex flex-col gap-2;
+}
+
+.route-config-section .settings-section {
+  @apply p-0 rounded-none bg-transparent;
+}
+
+/* Permanent waypoint names on Leaflet markers */
+.leaflet-tooltip.waypoint-map-label {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(15, 23, 42, 0.2);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #0f172a;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 1 !important;
+  text-align: center;
+}
+
+.dark .leaflet-tooltip.waypoint-map-label {
+  background: rgba(15, 23, 42, 0.9);
+  border-color: rgba(248, 250, 252, 0.2);
+  color: #f8fafc;
 }
 

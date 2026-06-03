@@ -9,6 +9,9 @@ export const translations = {
     appDescription: "Plan your mountaineering routes with precision",
     
     // Buttons
+    home: "Home",
+    showHome: "Go to home",
+    hideHome: "Leave home",
     routeManager: "Routes",
     generalSettings: "Settings",
     help: "Help",
@@ -16,9 +19,9 @@ export const translations = {
     routeConfiguration: "Route Configuration",
     routeSettingsDesc: "Configure settings for \"{routeName}\" (overrides default)",
     routeSpecificSettings: "Route-specific settings",
-    ascentSpeedLabel: "Ascent Speed (m/h)",
-    descentSpeedLabel: "Descent Speed (m/h)",
-    flatSpeedLabel: "Flat Speed (m/h)",
+    ascentSpeedLabel: "Ascent (m/h)",
+    descentSpeedLabel: "Descent (m/h)",
+    flatSpeedLabel: "Flat (m/h)",
     startingTimeLabel: "Starting Time",
     safetyTimeLabel: "Safety Time (%)",
     distanceCalculation: "Distance Calculation",
@@ -26,6 +29,20 @@ export const translations = {
     waypointToWaypoint: "Waypoint to waypoint",
     trackBasedDesc: "Uses actual track path for accurate distances",
     waypointToWaypointDesc: "Uses straight-line distance between waypoints",
+    trackProcessing: "Track processing",
+    trackProcessingDesc: "Resample and smooth the track before measuring distance and elevation (original GPX file is kept unchanged).",
+    showAdvancedOptions: "Show advanced options",
+    resampleSpacing: "Resample spacing (m)",
+    resampleSpacingTip: "Even spacing along the track. Smaller values capture more detail (e.g. 1–3 m).",
+    smoothWindow: "Elevation smooth window (m)",
+    smoothWindowTip: "Median filter width to reduce GPS spikes in elevation.",
+    elevationDeadband: "Elevation deadband (m)",
+    elevationDeadbandTip: "Ignore elevation changes smaller than this when summing ascent/descent.",
+    resampling: "Resampling",
+    smoothing: "Smoothing",
+    deadband: "Deadband",
+    cannotReparseGpx: "Cannot update distance settings for this route. Please reload the GPX file.",
+    errorUpdatingDistanceSettings: "Error updating distance settings",
     routeStatistics: "Route Statistics",
     startingTime: "Starting Time",
     endingTime: "Ending Time",
@@ -37,6 +54,8 @@ export const translations = {
     descent: "Descent",
     maxElevation: "Max Elevation",
     exports: "Exports",
+    showExports: "Show exports",
+    hideExports: "Hide exports",
     export: "Export",
     exportPDF: "PDF",
     exportPDFDesc: "Export route as PDF document",
@@ -85,7 +104,7 @@ export const translations = {
     penalty: "Penalty (%)",
     rest: "Rest (min)",
     total: "Total",
-    progression: "Prog.",
+    progression: "Progression",
     time: "Time",
     notes: "Notes",
     
@@ -130,6 +149,10 @@ export const translations = {
     license: "License",
     
     // Common
+    originDestination: "Section",
+    critical: "Critical",
+    restColumn: "Rest",
+    destinationCoords: "Destination coords",
     decisionPoint: "Decision point",
     safetyTime: "Safety Time",
     start: "Start",
@@ -225,10 +248,36 @@ export const translations = {
     defaultRouteConfiguration: "Default Route Configuration", 
     defaultValuesExplanation: "Default values for new routes. Can be overridden in individual route configuration.",
     
-    // Speeds section
-    speeds: "Speeds",
-    segmentTimeFormula: "Segment time = (flat distance ÷ flat speed) + (ascent ÷ ascent speed) + (descent ÷ descent speed)",
-    speedsForThisRoute: "Speeds for this route (m/h)",
+    // Time calculation section
+    formula: "Formula",
+    distanceFormulaHelpAria: "Explain distance calculation methods",
+    formulaHelpAria: "Explain Naismith's upgraded model and the Swiss alpine club model",
+    timeFormulaHelpIntro:
+      "Two time models — pick one in the Formula dropdown:",
+    timeMethodAdditive: "Naismith's upgraded model",
+    timeMethodAdditiveDesc:
+      "Adds time for flat distance, ascent, and descent separately — an extended take on classic Naismith-style route planning. Steep mixed legs can read slower than a single blended pace.",
+    timeMethodActivityBlend: "Swiss alpine club model",
+    timeMethodActivityBlendDesc:
+      "Blends horizontal and vertical pace along the track (SAC-style leg timing). Uses ascent or descent rate for the dominant vertical part; downhill-dominant legs are multiplied by the downhill factor.",
+    segmentTimeFormulaAdditiveCode:
+      "t_flat = distance_m / flat_speed\nt_up = ascent_m / ascent_speed\nt_down = descent_m / descent_speed\ntime = t_flat + t_up + t_down",
+    segmentTimeFormulaActivityBlendCode:
+      "t_flat = distance_m / flat_speed\nt_vert = vertical_m / vert_speed\ntime = max(t_flat, t_vert)\n     + 0.5 * min(t_flat, t_vert)\nif descent >= ascent:\n  time *= downhill_factor",
+    activitySpeed: "Activity speed",
+    activitySpeedDesc: "Loads default ascent, descent, and flat rates for the selected activity. Values below can still be edited.",
+    downhillFactor: "Downhill factor",
+    downhillFactorTip:
+      "Swiss alpine club model only: multiplier when the leg is downhill-dominant (descent ≥ ascent). Values below 1 speed up descents (e.g. ⅔ ≈ 0.67).",
+    columns: "Columns",
+    columnsDesc: "Show or hide optional columns in the route table and exports",
+    routeActivityLog: "Route activity log",
+    noActivityLogEntries: "No activity log entries yet",
+    routeDistance: "Route",
+    totalTiming: "Total timing",
+    addRest: "Add rest",
+    restAt: "REST at {name}",
+    removeRest: "Remove rest",
     
     // Tooltips and titles
     hideRouteManager: "Hide route manager",
@@ -273,6 +322,9 @@ export const translations = {
     appDescription: "Planifiez vos routes d'alpinisme avec précision",
     
     // Buttons
+    home: "Accueil",
+    showHome: "Aller à l'accueil",
+    hideHome: "Quitter l'accueil",
     routeManager: "Routes",
     generalSettings: "Paramètres",
     help: "Aide",
@@ -280,9 +332,9 @@ export const translations = {
     routeConfiguration: "Configuration de Route",
     routeSettingsDesc: "Configurer les paramètres pour \"{routeName}\" (remplace les valeurs par défaut)",
     routeSpecificSettings: "Paramètres spécifiques à la route",
-    ascentSpeedLabel: "Vitesse de Montée (m/h)",
-    descentSpeedLabel: "Vitesse de Descente (m/h)",
-    flatSpeedLabel: "Vitesse sur Terrain Plat (m/h)",
+    ascentSpeedLabel: "Montée (m/h)",
+    descentSpeedLabel: "Descente (m/h)",
+    flatSpeedLabel: "Plat (m/h)",
     startingTimeLabel: "Heure de Départ",
     safetyTimeLabel: "Temps de Sécurité (%)",
     distanceCalculation: "Calcul de Distance",
@@ -290,6 +342,20 @@ export const translations = {
     waypointToWaypoint: "Point à point",
     trackBasedDesc: "Utilise le chemin réel de la piste pour des distances précises",
     waypointToWaypointDesc: "Utilise la distance en ligne droite entre les points",
+    trackProcessing: "Traitement de la piste",
+    trackProcessingDesc: "Rééchantillonne et lisse la piste avant de mesurer distance et dénivelé (le fichier GPX d'origine est conservé).",
+    showAdvancedOptions: "Afficher les options avancées",
+    resampleSpacing: "Espacement de rééchantillonnage (m)",
+    resampleSpacingTip: "Points régulièrement espacés le long de la piste. Plus petit = plus de détail (ex. 1–3 m).",
+    smoothWindow: "Fenêtre de lissage altitude (m)",
+    smoothWindowTip: "Filtre médian pour réduire les pics GPS en altitude.",
+    elevationDeadband: "Seuil altitude (m)",
+    elevationDeadbandTip: "Ignore les variations d'altitude inférieures à ce seuil pour le D+/D−.",
+    resampling: "Rééchant.",
+    smoothing: "Lissage",
+    deadband: "Seuil",
+    cannotReparseGpx: "Impossible de mettre à jour les paramètres de distance. Rechargez le fichier GPX.",
+    errorUpdatingDistanceSettings: "Erreur lors de la mise à jour des paramètres de distance",
     routeStatistics: "Statistiques de Route",
     startingTime: "Heure de Départ",
     endingTime: "Heure d'Arrivée",
@@ -301,6 +367,8 @@ export const translations = {
     descent: "Descente",
     maxElevation: "Altitude Max",
     exports: "Exports",
+    showExports: "Afficher les exports",
+    hideExports: "Masquer les exports",
     export: "Exporter",
     exportPDF: "PDF",
     exportPDFDesc: "Exporter la route en document PDF",
@@ -345,7 +413,7 @@ export const translations = {
     penalty: "Pénalité (%)",
     rest: "Repos (min)",
     total: "Total",
-    progression: "Prog.",
+    progression: "Progression",
     time: "Heure",
     notes: "Notes",
     
@@ -390,6 +458,10 @@ export const translations = {
     license: "Licence",
     
     // Common
+    originDestination: "Section",
+    critical: "Critique",
+    restColumn: "Repos",
+    destinationCoords: "Coords destination",
     decisionPoint: "Point de décision",
     safetyTime: "Temps de Sécurité",
     start: "Départ",
@@ -501,10 +573,36 @@ export const translations = {
     defaultRouteConfiguration: "Configuration de Route par Défaut",
     defaultValuesExplanation: "Valeurs par défaut pour les nouvelles routes. Peuvent être remplacées dans la configuration de route individuelle.",
     
-    // Speeds section
-    speeds: "Vitesses",
-    segmentTimeFormula: "Temps de segment = (distance plate ÷ vitesse plate) + (montée ÷ vitesse montée) + (descente ÷ vitesse descente)",
-    speedsForThisRoute: "Vitesses pour cette route (m/h)",
+    // Time calculation section
+    formula: "Formule",
+    distanceFormulaHelpAria: "Expliquer les méthodes de calcul de distance",
+    formulaHelpAria: "Expliquer le modèle Naismith amélioré et le modèle du Club alpin suisse",
+    timeFormulaHelpIntro:
+      "Deux modèles de temps — choisissez-en un dans la liste Formule :",
+    timeMethodAdditive: "Modèle Naismith amélioré",
+    timeMethodAdditiveDesc:
+      "Additionne le temps pour le plat, la montée et la descente — une version étendue de la planification type Naismith. Les tronçons mixtes pentus peuvent paraître plus lents.",
+    timeMethodActivityBlend: "Modèle du Club alpin suisse",
+    timeMethodActivityBlendDesc:
+      "Mélange les allures horizontale et verticale le long de la trace (chrono type CAS). Taux de montée ou descente selon le vertical dominant ; tronçons en descente × facteur de descente.",
+    segmentTimeFormulaAdditiveCode:
+      "t_plat = distance_m / vitesse_plate\nt_montée = montée_m / vitesse_montée\nt_descente = descente_m / vitesse_descente\ntemps = t_plat + t_montée + t_descente",
+    segmentTimeFormulaActivityBlendCode:
+      "t_plat = distance_m / vitesse_plate\nt_vert = vertical_m / vitesse_vert\n temps = max(t_plat, t_vert)\n     + 0,5 * min(t_plat, t_vert)\nsi descente >= montée:\n  temps *= facteur_descente",
+    activitySpeed: "Allure d'activité",
+    activitySpeedDesc: "Charge les vitesses par défaut (montée, descente, plat) pour l'activité choisie. Les valeurs ci-dessous restent modifiables.",
+    downhillFactor: "Facteur de descente",
+    downhillFactorTip:
+      "Modèle du Club alpin suisse uniquement : multiplicateur lorsque la descente domine (descente ≥ montée). Une valeur < 1 accélère les descentes (ex. ⅔ ≈ 0,67).",
+    columns: "Colonnes",
+    columnsDesc: "Afficher ou masquer les colonnes optionnelles dans le tableau et les exports",
+    routeActivityLog: "Journal d'activité de la route",
+    noActivityLogEntries: "Aucune entrée dans le journal pour l'instant",
+    routeDistance: "Route",
+    totalTiming: "Temps cumulé",
+    addRest: "Ajouter un repos",
+    restAt: "REPOS à {name}",
+    removeRest: "Supprimer le repos",
     
     // Tooltips and titles
     hideRouteManager: "Masquer le gestionnaire de routes",
@@ -547,6 +645,9 @@ export const translations = {
     appDescription: "Planifica tus rutas de montañismo con precisión",
     
     // Buttons
+    home: "Inicio",
+    showHome: "Ir al inicio",
+    hideHome: "Salir del inicio",
     routeManager: "Rutas",
     generalSettings: "Configuración",
     help: "Ayuda",
@@ -554,9 +655,9 @@ export const translations = {
     routeConfiguration: "Configuración de Ruta",
     routeSettingsDesc: "Configurar ajustes para \"{routeName}\" (anula los valores por defecto)",
     routeSpecificSettings: "Configuración específica de la ruta",
-    ascentSpeedLabel: "Velocidad de Ascenso (m/h)",
-    descentSpeedLabel: "Velocidad de Descenso (m/h)",
-    flatSpeedLabel: "Velocidad en Terreno Plano (m/h)",
+    ascentSpeedLabel: "Ascenso (m/h)",
+    descentSpeedLabel: "Descenso (m/h)",
+    flatSpeedLabel: "Llano (m/h)",
     startingTimeLabel: "Hora de Inicio",
     safetyTimeLabel: "Tiempo de Seguridad (%)",
     distanceCalculation: "Cálculo de Distancia",
@@ -564,6 +665,20 @@ export const translations = {
     waypointToWaypoint: "Punto a punto",
     trackBasedDesc: "Utiliza la ruta real de la pista para distancias precisas",
     waypointToWaypointDesc: "Utiliza la distancia en línea recta entre puntos",
+    trackProcessing: "Procesado de pista",
+    trackProcessingDesc: "Remuestrea y suaviza la pista antes de medir distancia y desnivel (el GPX original no se modifica).",
+    showAdvancedOptions: "Mostrar opciones avanzadas",
+    resampleSpacing: "Espaciado de remuestreo (m)",
+    resampleSpacingTip: "Puntos espaciados uniformemente. Valores menores = más detalle (ej. 1–3 m).",
+    smoothWindow: "Ventana de suavizado de elevación (m)",
+    smoothWindowTip: "Filtro mediano para reducir picos GPS en elevación.",
+    elevationDeadband: "Banda muerta de elevación (m)",
+    elevationDeadbandTip: "Ignora cambios de elevación menores al calcular ascenso/descenso.",
+    resampling: "Remuestreo",
+    smoothing: "Suavizado",
+    deadband: "Umbral",
+    cannotReparseGpx: "No se pueden actualizar los ajustes de distancia. Vuelva a cargar el GPX.",
+    errorUpdatingDistanceSettings: "Error al actualizar los ajustes de distancia",
     routeStatistics: "Estadísticas de Ruta",
     startingTime: "Hora de Inicio",
     endingTime: "Hora de Llegada",
@@ -575,6 +690,8 @@ export const translations = {
     descent: "Descenso",
     maxElevation: "Altitud Máxima",
     exports: "Exportaciones",
+    showExports: "Mostrar exportaciones",
+    hideExports: "Ocultar exportaciones",
     exportPDF: "PDF",
     exportPDFDesc: "Exportar ruta como documento PDF",
     exportGPX: "GPX",
@@ -622,7 +739,7 @@ export const translations = {
     penalty: "Penalización (%)",
     rest: "Descanso (min)",
     total: "Total",
-    progression: "Prog.",
+    progression: "Progresión",
     time: "Hora",
     notes: "Notas",
     
@@ -667,6 +784,10 @@ export const translations = {
     license: "Licencia",
     
     // Common
+    originDestination: "Sección",
+    critical: "Crítico",
+    restColumn: "Descanso",
+    destinationCoords: "Coords destino",
     decisionPoint: "Punto de decisión",
     safetyTime: "Tiempo de Seguridad",
     start: "Inicio",
@@ -750,6 +871,8 @@ export const translations = {
     activityModeChangeMessage: "Cambiar el modo de actividad restablecerá tus velocidades personalizadas a los valores por defecto para este modo. Tus modificaciones de velocidad personalizadas se perderán.",
     confirmActivityModeChange: "Confirmar Cambio de Actividad",
     exports: "Exportaciones",
+    showExports: "Mostrar exportaciones",
+    hideExports: "Ocultar exportaciones",
     export: "Exportar",
     exportPDF: "PDF",
     exportPDFDesc: "Exportar la route en documento PDF",
@@ -770,10 +893,36 @@ export const translations = {
     defaultRouteConfiguration: "Configuración de Ruta por Defecto",
     defaultValuesExplanation: "Valores por defecto para nuevas rutas. Se pueden sobrescribir en la configuración de ruta individual.",
     
-    // Speeds section
-    speeds: "Velocidades",
-    segmentTimeFormula: "Tiempo de segmento = (distancia plana ÷ velocidad plana) + (ascenso ÷ velocidad ascenso) + (descenso ÷ velocidad descenso)",
-    speedsForThisRoute: "Velocidades para esta ruta (m/h)",
+    // Time calculation section
+    formula: "Fórmula",
+    distanceFormulaHelpAria: "Explicar los métodos de cálculo de distancia",
+    formulaHelpAria: "Explicar el modelo Naismith mejorado y el modelo del club alpino suizo",
+    timeFormulaHelpIntro:
+      "Dos modelos de tiempo — elige uno en el desplegable Fórmula:",
+    timeMethodAdditive: "Modelo Naismith mejorado",
+    timeMethodAdditiveDesc:
+      "Suma el tiempo de llano, ascenso y descenso por separado — una versión ampliada de la planificación tipo Naismith. Los tramos mixtos empinados pueden parecer más lentos.",
+    timeMethodActivityBlend: "Modelo del club alpino suizo",
+    timeMethodActivityBlendDesc:
+      "Combina ritmos horizontal y vertical a lo largo del track (cronometraje tipo SAC). Usa ascenso o descenso según el vertical dominante; tramos en bajada × factor de descenso.",
+    segmentTimeFormulaAdditiveCode:
+      "t_llano = distancia_m / vel_llana\nt_subida = ascenso_m / vel_subida\nt_bajada = descenso_m / vel_bajada\ntiempo = t_llano + t_subida + t_bajada",
+    segmentTimeFormulaActivityBlendCode:
+      "t_llano = distancia_m / vel_llana\nt_vert = vertical_m / vel_vert\ntiempo = max(t_llano, t_vert)\n     + 0,5 * min(t_llano, t_vert)\nsi descenso >= ascenso:\n  tiempo *= factor_bajada",
+    activitySpeed: "Velocidad de actividad",
+    activitySpeedDesc: "Carga las velocidades por defecto (subida, bajada, llano) de la actividad elegida. Los valores siguientes se pueden editar.",
+    downhillFactor: "Factor de bajada",
+    downhillFactorTip:
+      "Solo modelo del club alpino suizo: multiplicador cuando domina el descenso (descenso ≥ ascenso). Valores < 1 aceleran bajadas (p. ej. ⅔ ≈ 0,67).",
+    columns: "Columnas",
+    columnsDesc: "Mostrar u ocultar columnas opcionales en la tabla y exportaciones",
+    routeActivityLog: "Registro de actividad de la ruta",
+    noActivityLogEntries: "Aún no hay entradas en el registro",
+    routeDistance: "Ruta",
+    totalTiming: "Tiempo total",
+    addRest: "Añadir descanso",
+    restAt: "DESCANSO en {name}",
+    removeRest: "Eliminar descanso",
     
     // Tooltips and titles
     hideRouteManager: "Ocultar gestor de rutas",
@@ -816,6 +965,9 @@ export const translations = {
     appDescription: "Planifica les teves rutes d'alpinisme amb precisió",
     
     // Buttons
+    home: "Inici",
+    showHome: "Anar a l'inici",
+    hideHome: "Sortir de l'inici",
     routeManager: "Rutes",
     generalSettings: "Configuració",
     help: "Ajuda",
@@ -823,9 +975,9 @@ export const translations = {
     routeConfiguration: "Configuració de Ruta",
     routeSettingsDesc: "Configurar ajustos per a \"{routeName}\" (anula els valors per defecte)",
     routeSpecificSettings: "Configuració específica de la ruta",
-    ascentSpeedLabel: "Velocitat d'Ascens (m/h)",
-    descentSpeedLabel: "Velocitat de Descens (m/h)",
-    flatSpeedLabel: "Velocitat en Terreny Plà (m/h)",
+    ascentSpeedLabel: "Pujada (m/h)",
+    descentSpeedLabel: "Baixada (m/h)",
+    flatSpeedLabel: "Pla (m/h)",
     startingTimeLabel: "Hora d'Inici",
     safetyTimeLabel: "Temps de Seguretat (%)",
     distanceCalculation: "Càlcul de Distància",
@@ -833,6 +985,20 @@ export const translations = {
     waypointToWaypoint: "Punt a punt",
     trackBasedDesc: "Utilitza el camí real de la pista per distàncies precises",
     waypointToWaypointDesc: "Utilitza la distància en línia recta entre punts",
+    trackProcessing: "Processament de la pista",
+    trackProcessingDesc: "Remostreja i suavitzar la pista abans de mesurar distància i desnivell (el GPX original es conserva).",
+    showAdvancedOptions: "Mostrar opcions avançades",
+    resampleSpacing: "Espaiat de remostreig (m)",
+    resampleSpacingTip: "Punts espaiats uniformement. Valors més petits = més detall (p. ex. 1–3 m).",
+    smoothWindow: "Finestra de suavitzat d'elevació (m)",
+    smoothWindowTip: "Filtre mitjà per reduir pics GPS en elevació.",
+    elevationDeadband: "Banda morta d'elevació (m)",
+    elevationDeadbandTip: "Ignora canvis d'elevació més petits en sumar pujada/baixada.",
+    resampling: "Remostreig",
+    smoothing: "Suavitzat",
+    deadband: "Llindar",
+    cannotReparseGpx: "No es poden actualitzar els paràmetres de distància. Torneu a carregar el GPX.",
+    errorUpdatingDistanceSettings: "Error en actualitzar els paràmetres de distància",
     routeStatistics: "Estadístiques de Ruta",
     startingTime: "Hora d'Inici",
     endingTime: "Hora d'Arribada",
@@ -844,6 +1010,8 @@ export const translations = {
     descent: "Descens",
     maxElevation: "Altitud Màxima",
     exports: "Exportacions",
+    showExports: "Mostrar exportacions",
+    hideExports: "Amagar exportacions",
     export: "Exportar",
     exportPDF: "PDF",
     exportPDFDesc: "Exportar ruta com a document PDF",
@@ -892,7 +1060,7 @@ export const translations = {
     penalty: "Penalització (%)",
     rest: "Descans (min)",
     total: "Total",
-    progression: "Prog.",
+    progression: "Progrés",
     time: "Hora",
     notes: "Notes",
     
@@ -937,6 +1105,10 @@ export const translations = {
     license: "Llicència",
     
     // Common
+    originDestination: "Secció",
+    critical: "Crític",
+    restColumn: "Descans",
+    destinationCoords: "Coords destinació",
     decisionPoint: "Punt de decisió",
     safetyTime: "Temps de Seguretat",
     start: "Inici",
@@ -1032,10 +1204,36 @@ export const translations = {
     defaultRouteConfiguration: "Configuració de Ruta per Defecte",
     defaultValuesExplanation: "Valors per defecte per a noves rutes. Es poden sobreescriure en la configuració de ruta individual.",
     
-    // Speeds section
-    speeds: "Velocitats",
-    segmentTimeFormula: "Temps de segment = (distància plana ÷ velocitat plana) + (pujada ÷ velocitat pujada) + (baixada ÷ velocitat baixada)",
-    speedsForThisRoute: "Velocitats per a aquesta ruta (m/h)",
+    // Time calculation section
+    formula: "Fórmula",
+    distanceFormulaHelpAria: "Explicar els mètodes de càlcul de distància",
+    formulaHelpAria: "Explicar el model Naismith millorat i el model del club alpí suís",
+    timeFormulaHelpIntro:
+      "Dos models de temps — tria'n un al desplegable Fórmula:",
+    timeMethodAdditive: "Model Naismith millorat",
+    timeMethodAdditiveDesc:
+      "Suma el temps de pla, pujada i baixada per separat — una versió ampliada de la planificació tipus Naismith. Els trams mixtos pendents poden semblar més lents.",
+    timeMethodActivityBlend: "Model del club alpí suís",
+    timeMethodActivityBlendDesc:
+      "Combina ritmes horitzontal i vertical al llarg del track (cronometratge tipus SAC). Usa pujada o baixada segons el vertical dominant; trams en baixada × factor de baixada.",
+    segmentTimeFormulaAdditiveCode:
+      "t_pla = distancia_m / velocitat_plana\nt_pujada = pujada_m / velocitat_pujada\nt_baixada = baixada_m / velocitat_baixada\ntemps = t_pla + t_pujada + t_baixada",
+    segmentTimeFormulaActivityBlendCode:
+      "t_pla = distancia_m / velocitat_plana\nt_vert = vertical_m / velocitat_vert\ntemps = max(t_pla, t_vert)\n     + 0,5 * min(t_pla, t_vert)\nsi baixada >= pujada:\n  temps *= factor_baixada",
+    activitySpeed: "Velocitat d'activitat",
+    activitySpeedDesc: "Carrega les velocitats per defecte (pujada, baixada, pla) de l'activitat triada. Els valors següents es poden editar.",
+    downhillFactor: "Factor de baixada",
+    downhillFactorTip:
+      "Només model del club alpí suís: multiplicador quan domina la baixada (baixada ≥ pujada). Valors < 1 acceleren baixades (p. ex. ⅔ ≈ 0,67).",
+    columns: "Columnes",
+    columnsDesc: "Mostrar o amagar columnes opcionals a la taula i exportacions",
+    routeActivityLog: "Registre d'activitat de la ruta",
+    noActivityLogEntries: "Encara no hi ha entrades al registre",
+    routeDistance: "Ruta",
+    totalTiming: "Temps total",
+    addRest: "Afegir descans",
+    restAt: "DESCANS a {name}",
+    removeRest: "Eliminar descans",
     
     // Tooltips and titles
     hideRouteManager: "Ocultar gestor de rutes",

@@ -5,6 +5,15 @@
 
 import { parseGPX } from '@we-gold/gpxjs';
 import { fromLatLon } from 'utm';
+import { processTrackPoints } from './trackProcessing.js';
+import { createRestId } from './routeTableRows.js';
+import { PROXIMITY_THRESHOLD_M } from './proximityConstants.js';
+
+function restsFromStopDuration(stopDuration) {
+  const minutes = stopDuration || 0
+  if (minutes <= 0) return []
+  return [{ id: createRestId(), durationMinutes: minutes }]
+}
 
 /**
  * Distance constants for GPX parsing and waypoint matching
@@ -15,7 +24,7 @@ import { fromLatLon } from 'utm';
 // Used for: coordinate matching (determining if two coordinates represent the same point),
 // finding closest track points, matching waypoints to tracks, and duplicate detection
 // Two waypoints/coordinates within this distance are considered the same or related point
-const PROXIMITY_THRESHOLD = 10; // meters
+const PROXIMITY_THRESHOLD = PROXIMITY_THRESHOLD_M;
 
 // High-precision tolerance for checking if start/end points exactly match track points
 const TRACK_POINT_PRECISION_TOLERANCE = 0.1; // meters (100mm)
@@ -114,13 +123,17 @@ function findNearestTrackPointIndex(trackPoints, latitude, longitude) {
  * @param {number} endLongitude - End longitude
  * @returns {Object} Metrics with distance, ascent, descent
  */
-function calculateTrackSegmentMetrics(trackPoints, startLatitude, startLongitude, endLatitude, endLongitude) {
-  const fallback = () => ({
-    distance: calculateDistance(startLatitude, startLongitude, endLatitude, endLongitude),
-    ascent: 0,
-    descent: 0
-  });
-
+/**
+ * Build the path polyline between two coordinates along a processed track (same slice as distance metrics).
+ * @returns {Array<{latitude, longitude, elevation?}>|null}
+ */
+export function getTrackPathBetweenWaypoints(
+  trackPoints,
+  startLatitude,
+  startLongitude,
+  endLatitude,
+  endLongitude,
+) {
   if (
     !Array.isArray(trackPoints) ||
     trackPoints.length === 0 ||
@@ -129,57 +142,77 @@ function calculateTrackSegmentMetrics(trackPoints, startLatitude, startLongitude
     !isFinite(endLatitude) ||
     !isFinite(endLongitude)
   ) {
-    return fallback();
+    return null
   }
 
-  const startIndex = findNearestTrackPointIndex(trackPoints, startLatitude, startLongitude);
-  const endIndex = findNearestTrackPointIndex(trackPoints, endLatitude, endLongitude);
+  const startIndex = findNearestTrackPointIndex(trackPoints, startLatitude, startLongitude)
+  const endIndex = findNearestTrackPointIndex(trackPoints, endLatitude, endLongitude)
 
   if (startIndex === null || endIndex === null) {
-    return fallback();
+    return null
   }
 
-  const fromIndex = Math.min(startIndex, endIndex);
-  const toIndex = Math.max(startIndex, endIndex);
+  const fromIndex = Math.min(startIndex, endIndex)
+  const toIndex = Math.max(startIndex, endIndex)
 
-  const slice = trackPoints.slice(fromIndex, toIndex + 1);
-  const pathPoints = [...slice];
+  const slice = trackPoints.slice(fromIndex, toIndex + 1)
+  const pathPoints = [...slice]
 
-  const firstSlicePoint = slice[0];
-  const lastSlicePoint = slice[slice.length - 1];
+  const firstSlicePoint = slice[0]
+  const lastSlicePoint = slice[slice.length - 1]
 
-  // Add start point if not close to first track point
   if (
     !coordinatesAreClose(
       firstSlicePoint?.latitude,
       firstSlicePoint?.longitude,
       startLatitude,
       startLongitude,
-      TRACK_POINT_PRECISION_TOLERANCE
+      TRACK_POINT_PRECISION_TOLERANCE,
     )
   ) {
     pathPoints.unshift({
       latitude: startLatitude,
       longitude: startLongitude,
-      elevation: firstSlicePoint?.elevation ?? null
-    });
+      elevation: firstSlicePoint?.elevation ?? null,
+    })
   }
 
-  // Add end point if not close to last track point
   if (
     !coordinatesAreClose(
       lastSlicePoint?.latitude,
       lastSlicePoint?.longitude,
       endLatitude,
       endLongitude,
-      TRACK_POINT_PRECISION_TOLERANCE
+      TRACK_POINT_PRECISION_TOLERANCE,
     )
   ) {
     pathPoints.push({
       latitude: endLatitude,
       longitude: endLongitude,
-      elevation: lastSlicePoint?.elevation ?? null
-    });
+      elevation: lastSlicePoint?.elevation ?? null,
+    })
+  }
+
+  return pathPoints.length >= 2 ? pathPoints : null
+}
+
+function calculateTrackSegmentMetrics(trackPoints, startLatitude, startLongitude, endLatitude, endLongitude) {
+  const fallback = () => ({
+    distance: calculateDistance(startLatitude, startLongitude, endLatitude, endLongitude),
+    ascent: 0,
+    descent: 0
+  });
+
+  const pathPoints = getTrackPathBetweenWaypoints(
+    trackPoints,
+    startLatitude,
+    startLongitude,
+    endLatitude,
+    endLongitude,
+  )
+
+  if (!pathPoints) {
+    return fallback();
   }
 
   let distance = 0;
@@ -560,9 +593,25 @@ export function parseGPXGeometry(gpxContent, settings) {
     if (distanceMethod === 'waypoint-to-waypoint') {
       return parseWaypointToWaypoint(gpxWaypoints, trackPoints, settings, track.name, log);
     }
+
+    // Track-based: preprocess raw GPX track (resample / smooth / elevation deadband).
+    // Original GPX is never modified — only an in-memory polyline for distance math.
+    const rawPointCount = trackPoints.length;
+    const processed = processTrackPoints(trackPoints, settings);
+    const trackPointsForDistance = processed.points;
+    log.push(createLogEntry('info', 'Track processed for distance calculation', {
+      originalPointCount: processed.originalPointCount,
+      processedPointCount: processed.processedPointCount,
+      resampleSpacingM: processed.resampleSpacingM,
+      smoothWindowM: processed.smoothWindowM,
+      elevationDeadbandM: processed.elevationDeadbandM,
+    }));
+    console.log(
+      `[GPX Parser] Track processing: ${rawPointCount} → ${trackPointsForDistance.length} points`
+    );
     
     // Create route segments based on waypoints (track-based method)
-    const routeSegments = createRouteSegments(trackPoints, gpxWaypoints);
+    const routeSegments = createRouteSegments(trackPointsForDistance, gpxWaypoints);
     
     // If no waypoints are close to the track, use track points as waypoints
     if (routeSegments.length === 0) {
@@ -570,7 +619,7 @@ export function parseGPXGeometry(gpxContent, settings) {
       log.push(createLogEntry('warning', 'No waypoints found close to track', {
         action: 'Using track points as waypoints'
       }));
-      return parseTrackAsWaypoints(trackPoints, settings, track.name, log);
+      return parseTrackAsWaypoints(trackPointsForDistance, settings, track.name, log);
     }
     
     // Convert segments to waypoints with geometric calculations only
@@ -580,8 +629,8 @@ export function parseGPXGeometry(gpxContent, settings) {
     let totalDescent = 0;
     
     // Add start waypoint
-    if (trackPoints.length > 0) {
-      const startPoint = trackPoints[0];
+    if (trackPointsForDistance.length > 0) {
+      const startPoint = trackPointsForDistance[0];
       const matchingStart = gpxWaypoints.find(wp =>
         coordinatesAreClose(wp.latitude, wp.longitude, startPoint.latitude, startPoint.longitude)
       );
@@ -601,7 +650,7 @@ export function parseGPXGeometry(gpxContent, settings) {
         totalAscent: 0,
         totalDescent: 0,
         terrainDifficultyPenalty: 0,
-        stopDuration: 0,
+        rests: [],
         comments: matchingStart?.comment || '',
         utm: convertToUTM(startPoint.latitude, startPoint.longitude)
       });
@@ -621,7 +670,7 @@ export function parseGPXGeometry(gpxContent, settings) {
 
       // Calculate track-based metrics (following the actual track)
       const trackMetrics = calculateTrackSegmentMetrics(
-        trackPoints,
+        trackPointsForDistance,
         previousWaypoint.latitude,
         previousWaypoint.longitude,
         targetPoint.latitude,
@@ -658,7 +707,7 @@ export function parseGPXGeometry(gpxContent, settings) {
         totalAscent: totalAscent,
         totalDescent: totalDescent,
         terrainDifficultyPenalty: segment.waypoint.terrainDifficultyPenalty || 0,
-        stopDuration: segment.waypoint.stopDuration || 0,
+        rests: restsFromStopDuration(segment.waypoint.stopDuration),
         lastWaypointTrackDistance: trackMetrics.distance,
         lastWaypointTrackAscent: trackMetrics.ascent,
         lastWaypointTrackDescent: trackMetrics.descent,
@@ -671,8 +720,8 @@ export function parseGPXGeometry(gpxContent, settings) {
     });
     
     // Add end waypoint
-    if (trackPoints.length > 0) {
-      const endPoint = trackPoints[trackPoints.length - 1];
+    if (trackPointsForDistance.length > 0) {
+      const endPoint = trackPointsForDistance[trackPointsForDistance.length - 1];
       const matchingEnd = gpxWaypoints.find(wp =>
         coordinatesAreClose(wp.latitude, wp.longitude, endPoint.latitude, endPoint.longitude)
       );
@@ -689,7 +738,7 @@ export function parseGPXGeometry(gpxContent, settings) {
       if (!isLastAtEnd) {
         const endMetrics = lastWaypoint
           ? calculateTrackSegmentMetrics(
-              trackPoints,
+              trackPointsForDistance,
               lastWaypoint.latitude,
               lastWaypoint.longitude,
               endPoint.latitude,
@@ -716,7 +765,7 @@ export function parseGPXGeometry(gpxContent, settings) {
           totalAscent: totalAscent,
           totalDescent: totalDescent,
           terrainDifficultyPenalty: 0,
-          stopDuration: 0,
+          rests: [],
           lastWaypointTrackDistance: endMetrics.distance,
           lastWaypointTrackAscent: endMetrics.ascent,
           lastWaypointTrackDescent: endMetrics.descent,
@@ -743,18 +792,19 @@ export function parseGPXGeometry(gpxContent, settings) {
     }
     
     // Update final waypoint metrics and remove duplicates
-    const finalUpdate = updateFinalWaypointMetrics(waypoints, trackPoints);
+    const finalUpdate = updateFinalWaypointMetrics(waypoints, trackPointsForDistance);
     const waypointsWithMetrics = addTrackAndDirectMetrics(finalUpdate.waypoints);
     
     return {
       gpxData: parsedGPX,
       waypoints: waypointsWithMetrics,
+      processedTrackPoints: trackPointsForDistance,
       metadata: {
         name: track.name || 'Unnamed Route',
         totalDistance: finalUpdate.totals?.totalDistance ?? totalDistance,
         totalAscent: finalUpdate.totals?.totalAscent ?? totalAscent,
         totalDescent: finalUpdate.totals?.totalDescent ?? totalDescent,
-        maxElevation: calculateMaxElevation(trackPoints)
+        maxElevation: calculateMaxElevation(trackPointsForDistance)
       },
       log
     };
@@ -846,7 +896,7 @@ function parseWaypointToWaypoint(gpxWaypoints, trackPoints, settings, trackName,
       totalAscent: 0,
       totalDescent: 0,
       terrainDifficultyPenalty: 0,
-      stopDuration: 0,
+      rests: [],
       lastWaypointTrackDistance: 0,
       lastWaypointTrackAscent: 0,
       lastWaypointTrackDescent: 0,
@@ -914,7 +964,7 @@ function parseWaypointToWaypoint(gpxWaypoints, trackPoints, settings, trackName,
       totalAscent: totalAscent,
       totalDescent: totalDescent,
       terrainDifficultyPenalty: waypoint.terrainDifficultyPenalty || 0,
-      stopDuration: waypoint.stopDuration || 0,
+      rests: restsFromStopDuration(waypoint.stopDuration),
       lastWaypointTrackDistance: trackMetrics.distance,
       lastWaypointTrackAscent: trackMetrics.ascent,
       lastWaypointTrackDescent: trackMetrics.descent,
@@ -980,7 +1030,7 @@ function parseWaypointToWaypoint(gpxWaypoints, trackPoints, settings, trackName,
         totalAscent: totalAscent,
         totalDescent: totalDescent,
         terrainDifficultyPenalty: 0,
-        stopDuration: 0,
+        rests: [],
         lastWaypointTrackDistance: endMetrics.distance,
         lastWaypointTrackAscent: endMetrics.ascent,
         lastWaypointTrackDescent: endMetrics.descent,
@@ -1049,7 +1099,7 @@ function parseTrackAsWaypoints(trackPoints, settings, trackName, log = []) {
       totalAscent: 0,
       totalDescent: 0,
       terrainDifficultyPenalty: 0,
-      stopDuration: 0,
+      rests: [],
       lastWaypointTrackDistance: 0,
       lastWaypointTrackAscent: 0,
       lastWaypointTrackDescent: 0,
@@ -1126,7 +1176,7 @@ function parseTrackAsWaypoints(trackPoints, settings, trackName, log = []) {
         totalAscent: totalAscent,
         totalDescent: totalDescent,
         terrainDifficultyPenalty: 0,
-        stopDuration: 0,
+        rests: [],
         lastWaypointTrackDistance: segmentDistance,
         lastWaypointTrackAscent: segmentAscent,
         lastWaypointTrackDescent: segmentDescent,
@@ -1168,7 +1218,7 @@ function parseTrackAsWaypoints(trackPoints, settings, trackName, log = []) {
         totalAscent: totalAscent,
         totalDescent: totalDescent,
         terrainDifficultyPenalty: 0,
-        stopDuration: 0,
+        rests: [],
         lastWaypointTrackDistance: 0,
         lastWaypointTrackAscent: 0,
         lastWaypointTrackDescent: 0,

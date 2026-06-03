@@ -2,6 +2,19 @@
  * Utilities for computing movement times and formatting time strings.
  */
 
+import { getTrackPathBetweenWaypoints } from './gpxParser.js'
+import { calculateDistance } from './trackProcessingUtils.js'
+
+/** @typedef {'additive' | 'activity_blend'} TimeCalculationMethod */
+
+export const TIME_CALCULATION_METHODS = {
+  ADDITIVE: 'additive',
+  ACTIVITY_BLEND: 'activity_blend',
+}
+
+export const DEFAULT_TIME_CALCULATION_METHOD = TIME_CALCULATION_METHODS.ACTIVITY_BLEND
+export const DEFAULT_DOWNHILL_FACTOR = 2 / 3
+
 function validatePositiveNumber(value, fallback) {
   if (!isFinite(value) || value <= 0) {
     return fallback
@@ -9,37 +22,173 @@ function validatePositiveNumber(value, fallback) {
   return value
 }
 
+function flatTimeHours(distanceKm, flatSpeedMh) {
+  const distanceMeters = (isFinite(distanceKm) ? Math.max(0, distanceKm) : 0) * 1000
+  if (distanceMeters <= 0) return 0
+  return distanceMeters / flatSpeedMh
+}
+
+function verticalTimeHours(elevationGain, elevationLoss, ascentSpeed, descentSpeed) {
+  const gain = isFinite(elevationGain) ? Math.max(0, elevationGain) : 0
+  const loss = isFinite(elevationLoss) ? Math.max(0, elevationLoss) : 0
+
+  if (gain <= 0 && loss <= 0) return { hours: 0, isDownhillDominant: false }
+
+  if (gain >= loss) {
+    return { hours: gain / ascentSpeed, isDownhillDominant: false }
+  }
+
+  return { hours: loss / descentSpeed, isDownhillDominant: loss > 0 }
+}
+
 /**
- * Calculate segment time using t = d/v (pure movement time only)
- * @param {number} distance - Segment distance in km
- * @param {number} elevationGain - Elevation gain in meters
- * @param {number} elevationLoss - Elevation loss in meters
- * @param {Object} settings - User speed settings with speeds in m/h
- * @returns {number} Time in minutes
+ * Additive component rates: horizontal and vertical time are summed (Naismith-style decomposition).
  */
-export function calculateSegmentTime(distance, elevationGain, elevationLoss, settings) {
+export function calculateSegmentTimeAdditive(distance, elevationGain, elevationLoss, settings) {
   const ascentSpeed = validatePositiveNumber(settings?.ascentSpeed, 300)
   const descentSpeed = validatePositiveNumber(settings?.descentSpeed, 500)
   const flatSpeed = validatePositiveNumber(settings?.flatSpeed, 4000)
 
-  const validDistance = isFinite(distance) ? Math.max(0, distance) : 0
-  const validElevationGain = isFinite(elevationGain) ? Math.max(0, elevationGain) : 0
-  const validElevationLoss = isFinite(elevationLoss) ? Math.max(0, elevationLoss) : 0
+  let totalHours = flatTimeHours(distance, flatSpeed)
+  const gain = isFinite(elevationGain) ? Math.max(0, elevationGain) : 0
+  const loss = isFinite(elevationLoss) ? Math.max(0, elevationLoss) : 0
+  if (gain > 0) totalHours += gain / ascentSpeed
+  if (loss > 0) totalHours += loss / descentSpeed
 
-  const distanceMeters = validDistance * 1000
+  return totalHours * 60
+}
+
+/**
+ * Sum blended activity time over each step along a path (Timewise-style; matches rolling terrain).
+ */
+export function calculateActivityBlendTimeFromPathPoints(pathPoints, settings) {
+  if (!Array.isArray(pathPoints) || pathPoints.length < 2) {
+    return 0
+  }
+
+  const flatSpeedMh = validatePositiveNumber(settings?.flatSpeed, 4000)
+  const ascentSpeedMh = validatePositiveNumber(settings?.ascentSpeed, 300)
+  const descentSpeedMh = validatePositiveNumber(settings?.descentSpeed, 500)
+  const downhillFactor = validatePositiveNumber(settings?.downhillFactor, DEFAULT_DOWNHILL_FACTOR)
+
   let totalHours = 0
 
-  if (distanceMeters > 0) {
-    totalHours += distanceMeters / flatSpeed
-  }
-  if (validElevationGain > 0) {
-    totalHours += validElevationGain / ascentSpeed
-  }
-  if (validElevationLoss > 0) {
-    totalHours += validElevationLoss / descentSpeed
+  for (let i = 1; i < pathPoints.length; i++) {
+    const previousPoint = pathPoints[i - 1]
+    const currentPoint = pathPoints[i]
+
+    if (
+      !isFinite(previousPoint?.latitude) ||
+      !isFinite(previousPoint?.longitude) ||
+      !isFinite(currentPoint?.latitude) ||
+      !isFinite(currentPoint?.longitude)
+    ) {
+      continue
+    }
+
+    const distKm = calculateDistance(
+      previousPoint.latitude,
+      previousPoint.longitude,
+      currentPoint.latitude,
+      currentPoint.longitude,
+    )
+
+    const dEle = (currentPoint.elevation ?? 0) - (previousPoint.elevation ?? 0)
+    const ascentM = dEle > 0 ? dEle : 0
+    const descentM = dEle < 0 ? -dEle : 0
+
+    const h = flatTimeHours(distKm, flatSpeedMh)
+    let v = 0
+    if (ascentM > 0) {
+      v = ascentM / ascentSpeedMh
+    } else if (descentM > 0) {
+      v = descentM / descentSpeedMh
+    }
+
+    let segHours = Math.max(h, v) + 0.5 * Math.min(h, v)
+    if (descentM > 0 && descentM >= ascentM) {
+      segHours *= downhillFactor
+    }
+
+    totalHours += segHours
   }
 
   return totalHours * 60
+}
+
+/**
+ * Blended activity time on aggregated leg totals (fallback when no track path is available).
+ */
+export function calculateSegmentTimeActivityBlendAggregated(
+  distance,
+  elevationGain,
+  elevationLoss,
+  settings,
+) {
+  const ascentSpeed = validatePositiveNumber(settings?.ascentSpeed, 300)
+  const descentSpeed = validatePositiveNumber(settings?.descentSpeed, 500)
+  const flatSpeed = validatePositiveNumber(settings?.flatSpeed, 4000)
+  const downhillFactor = validatePositiveNumber(settings?.downhillFactor, DEFAULT_DOWNHILL_FACTOR)
+
+  const flatHours = flatTimeHours(distance, flatSpeed)
+  const { hours: verticalHours, isDownhillDominant } = verticalTimeHours(
+    elevationGain,
+    elevationLoss,
+    ascentSpeed,
+    descentSpeed,
+  )
+
+  let segmentHours = Math.max(flatHours, verticalHours) + 0.5 * Math.min(flatHours, verticalHours)
+  if (isDownhillDominant) {
+    segmentHours *= downhillFactor
+  }
+
+  return segmentHours * 60
+}
+
+/**
+ * Blended activity time: per-step sum along track when pathPoints provided, else aggregated leg formula.
+ */
+export function calculateSegmentTimeActivityBlend(
+  distance,
+  elevationGain,
+  elevationLoss,
+  settings,
+  pathPoints = null,
+) {
+  if (Array.isArray(pathPoints) && pathPoints.length >= 2) {
+    return calculateActivityBlendTimeFromPathPoints(pathPoints, settings)
+  }
+  return calculateSegmentTimeActivityBlendAggregated(distance, elevationGain, elevationLoss, settings)
+}
+
+/**
+ * Calculate segment movement time in minutes.
+ * @param {number} distance - Segment distance in km
+ * @param {number} elevationGain - Elevation gain in meters
+ * @param {number} elevationLoss - Elevation loss in meters
+ * @param {Object} settings - Route settings (speeds in m/h, timeCalculationMethod, downhillFactor)
+ * @param {Array<{latitude, longitude, elevation?}>|null} [pathPoints] - Optional track path for blended mode
+ * @returns {number} Time in minutes
+ */
+export function calculateSegmentTime(
+  distance,
+  elevationGain,
+  elevationLoss,
+  settings,
+  pathPoints = null,
+) {
+  const method = settings?.timeCalculationMethod ?? DEFAULT_TIME_CALCULATION_METHOD
+  if (method === TIME_CALCULATION_METHODS.ACTIVITY_BLEND) {
+    return calculateSegmentTimeActivityBlend(
+      distance,
+      elevationGain,
+      elevationLoss,
+      settings,
+      pathPoints,
+    )
+  }
+  return calculateSegmentTimeAdditive(distance, elevationGain, elevationLoss, settings)
 }
 
 /**
@@ -97,45 +246,82 @@ export function formatTotalTimeWithPercentage(currentTime, routeTotalTime) {
  * Recalculate waypoint times based on updated settings or waypoint data.
  * @param {Array} waypoints - Array of waypoints
  * @param {Object} settings - User speed settings
+ * @param {{ processedTrackPoints?: Array<{latitude, longitude, elevation?}> }} [options]
  * @returns {Array} Updated waypoints
  */
-export function recalculateWaypoints(waypoints, settings) {
+export function recalculateWaypoints(waypoints, settings, options = {}) {
   let totalTime = 0
+  const startTime = settings?.startTime || '08:00'
+  const processedTrackPoints = options.processedTrackPoints ?? null
+  const useTrackBlend =
+    (settings?.timeCalculationMethod ?? DEFAULT_TIME_CALCULATION_METHOD) ===
+      TIME_CALCULATION_METHODS.ACTIVITY_BLEND &&
+    Array.isArray(processedTrackPoints) &&
+    processedTrackPoints.length > 0
 
-  const updatedWaypoints = waypoints.map((waypoint, index) => {
+  return waypoints.map((waypoint, index) => {
     let segmentTime = 0
 
     if (index > 0) {
+      const previousWaypoint = waypoints[index - 1]
+      const pathPoints = useTrackBlend
+        ? getTrackPathBetweenWaypoints(
+            processedTrackPoints,
+            previousWaypoint.latitude,
+            previousWaypoint.longitude,
+            waypoint.latitude,
+            waypoint.longitude,
+          )
+        : null
+
       segmentTime = calculateSegmentTime(
         waypoint.segmentDistance,
         waypoint.segmentAscent,
         waypoint.segmentDescent,
-        settings
+        settings,
+        pathPoints,
       )
-
-      const segmentWithAdaptations =
-        segmentTime * (1 + (waypoint.terrainDifficultyPenalty || 0)) + (waypoint.stopDuration || 0)
-      totalTime += segmentWithAdaptations
+      totalTime += segmentTime * (1 + (waypoint.terrainDifficultyPenalty || 0))
     }
+
+    const arrivalAtWaypoint = totalTime
+
+    const rests = (waypoint.rests ?? []).map((rest) => {
+      const durationMinutes = Math.max(0, rest.durationMinutes || 0)
+      const arrivalAtRest = totalTime
+      totalTime += durationMinutes
+      return {
+        ...rest,
+        durationMinutes,
+        segmentTime: durationMinutes,
+        arrivalTimeMinutes: arrivalAtRest,
+        totalTime,
+        hour: calculateArrivalTime(startTime, arrivalAtRest),
+        departureHour: calculateArrivalTime(startTime, totalTime),
+      }
+    })
 
     return {
       ...waypoint,
+      rests,
       segmentTime,
-      totalTime,
-      timeTillArrival: totalTime,
-      hour: calculateArrivalTime(settings?.startTime || '08:00', totalTime)
+      totalTime: arrivalAtWaypoint,
+      timeTillArrival: arrivalAtWaypoint,
+      hour: calculateArrivalTime(startTime, arrivalAtWaypoint),
     }
   })
-
-  return updatedWaypoints
 }
 
 export default {
+  TIME_CALCULATION_METHODS,
   calculateSegmentTime,
+  calculateSegmentTimeAdditive,
+  calculateSegmentTimeActivityBlend,
+  calculateSegmentTimeActivityBlendAggregated,
+  calculateActivityBlendTimeFromPathPoints,
   calculateArrivalTime,
   formatTimeHoursMinutes,
   formatTimeHoursMinutesForMin,
   formatTotalTimeWithPercentage,
-  recalculateWaypoints
+  recalculateWaypoints,
 }
-

@@ -2,6 +2,8 @@
  * GPX Export Service for exporting routes to GPX format
  */
 
+import { PROXIMITY_THRESHOLD_M } from './proximityConstants.js'
+
 /**
  * Export route to GPX format
  * @param {Object} route - Route object with waypoints and track data
@@ -91,7 +93,7 @@ function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
 
 /**
  * Check if waypoints have been modified compared to original GPX
- * Uses proximity-based matching (10 meters) to account for waypoints snapped to track points
+ * Uses proximity-based matching (25 metres) to account for waypoints snapped to track points
  * Excludes start/end waypoints that match track start/end from comparison
  * @param {Object} route - Route object
  * @returns {Object} Modification status with details
@@ -112,8 +114,7 @@ export function checkWaypointModifications(route) {
   const startTrackPoint = trackPoints.length > 0 ? trackPoints[0] : null;
   const endTrackPoint = trackPoints.length > 0 ? trackPoints[trackPoints.length - 1] : null;
   
-  // Proximity threshold in meters (same as PROXIMITY_THRESHOLD in gpxParser.js)
-  const PROXIMITY_THRESHOLD = 10; // meters
+  const PROXIMITY_THRESHOLD = PROXIMITY_THRESHOLD_M
   
   // Filter out original waypoints that match start/end track points
   // These are represented as synthetic start/end points, so we exclude them from comparison

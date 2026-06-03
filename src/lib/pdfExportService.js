@@ -5,15 +5,30 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { translations } from './translations.js';
-import { getWaypointDisplayName } from './waypointUtils.js';
+import { getLegDescription } from './waypointUtils.js';
+import { DEFAULT_ACTIVITY_MODE, getColumnVisibility, getEffectiveRouteSettings } from './routeDefaults.js';
+import {
+  buildRouteTableRows,
+  getRestLabel,
+  getRouteEndTime,
+  getRowProgressionPercent,
+  getRowTimingMinutes,
+} from './routeTableRows.js';
+
+/** Unicode arrows often fail in jsPDF's default font; use ASCII dash + greater-than instead. */
+const replaceArrowsForPDF = (text) =>
+  text
+    .replace(/ → /g, ' -> ')
+    .replace(/→/g, '->')
+    .replace(/↑/g, '^')
+    .replace(/↓/g, 'v');
 
 /**
  * Export route to PDF
  * @param {Object} route - Route object with waypoints
- * @param {Object} settings - User speed settings
  * @param {string} language - Language code for translations
  */
-export function exportRouteToPDF(route, settings, language = 'en') {
+export function exportRouteToPDF(route, language = 'en') {
   try {
     const doc = new jsPDF('landscape', 'mm', 'a4');
   
@@ -48,19 +63,7 @@ export function exportRouteToPDF(route, settings, language = 'en') {
     return translations[language]?.[key] || translations.en[key] || key;
   };
   
-  // Helper function to get effective settings for a route
-  const getEffectiveSettings = (route) => {
-    if (route?.settings) {
-      return route.settings;
-    }
-    const currentSpeeds = settings.activityModes[settings.activityMode];
-    return {
-      ...settings,
-      ascentSpeed: currentSpeeds.ascentSpeed,
-      descentSpeed: currentSpeeds.descentSpeed,
-      flatSpeed: currentSpeeds.flatSpeed,
-    };
-  };
+  const getEffectiveSettings = getEffectiveRouteSettings;
 
   // Add title
   doc.setFontSize(18);
@@ -73,8 +76,9 @@ export function exportRouteToPDF(route, settings, language = 'en') {
   if (route.waypoints.length > 0) {
     const lastWaypoint = route.waypoints[route.waypoints.length - 1];
     const effectiveSettings = getEffectiveSettings(route);
-    const safetyTime = (lastWaypoint.totalTime * (effectiveSettings.safetyTimePercentage / 100));
-    const totalWithSafety = lastWaypoint.totalTime + safetyTime;
+    const routeEndTime = getRouteEndTime(route.waypoints);
+    const safetyTime = routeEndTime * (effectiveSettings.safetyTimePercentage / 100);
+    const totalWithSafety = routeEndTime + safetyTime;
     
     // Calculate ending time
     const startTime = effectiveSettings.startTime || '08:00';
@@ -93,14 +97,7 @@ export function exportRouteToPDF(route, settings, language = 'en') {
     const utmZone = utmZones.length > 0 ? utmZones.join(', ') : 'N/A';
     
     // Activity mode translation
-    const activityMode = effectiveSettings.activityMode || settings.activityMode;
-    
-    // Helper function to replace arrow characters with ASCII equivalents for PDF compatibility
-    const replaceArrowsForPDF = (text) => {
-      return text.replace(/↑/g, '^')
-                .replace(/↓/g, 'v')
-                .replace(/→/g, '>');
-    };
+    const activityMode = effectiveSettings.activityMode || DEFAULT_ACTIVITY_MODE;
     
     // First line: waypoints • distance • ascent • descent • max elevation (using + and - for ascent/descent)
     const firstLineRaw = `${route.waypoints.length} waypoints • ${route.metadata?.totalDistance?.toFixed(2) || lastWaypoint.totalDistance.toFixed(2)} km • +${route.metadata?.totalAscent?.toFixed(0) || lastWaypoint.totalAscent.toFixed(0)}m • -${route.metadata?.totalDescent?.toFixed(0) || lastWaypoint.totalDescent.toFixed(0)}m • ${route.metadata?.maxElevation?.toFixed(0) || '0'}m max`;
@@ -151,79 +148,111 @@ export function exportRouteToPDF(route, settings, language = 'en') {
     tableStartY = generationDateY + 6;
   }
   
-  // Prepare table data matching the UI structure
-  const tableData = route.waypoints.map((wp, index) => {
-    const displayName = getWaypointDisplayName(route, wp, t);
-    // Handle penalty display with time in parentheses when non-null
-    const penaltyDisplay = index === 0 
-      ? '-' // Empty for first waypoint (using hyphen instead of em-dash)
-      : wp.terrainDifficultyPenalty > 0 
+  const cols = getColumnVisibility(getEffectiveSettings(route));
+  const routeEndTime = getRouteEndTime(route.waypoints);
+
+  const tableData = buildRouteTableRows(route.waypoints).map((tableRow) => {
+    const isRest = tableRow.rowType === 'rest';
+    const wp = tableRow.waypoint;
+    const index = tableRow.waypointIndex;
+    const rest = tableRow.rest;
+    const displayName = replaceArrowsForPDF(
+      isRest ? getRestLabel(route, wp, t) : getLegDescription(route, index, t),
+    );
+    const penaltyDisplay = index === 0
+      ? '—'
+      : wp.terrainDifficultyPenalty > 0
         ? `${(wp.terrainDifficultyPenalty * 100).toFixed(0)}% (${formatTimeHoursMinutesForMin(wp.segmentTime * wp.terrainDifficultyPenalty)})`
         : `${(wp.terrainDifficultyPenalty * 100).toFixed(0)}%`;
-    
-    return [
-      wp.isDecisionPoint ? `${displayName}\n\n/!\\ DECISION POINT /!\\` : displayName, // Waypoint column with prominent decision point indicator
-      `${wp.utm ? wp.utm.replace(/^Zone \d+[A-Z] /, '') : 'N/A'}\n${wp.elevation.toFixed(0)}m`, // Position column with UTM coordinates (without zone) and altitude
-      // Empty cells for first waypoint's segment columns, data for others
-      index === 0 ? '' : `+${wp.segmentAscent.toFixed(0)}m\n-${wp.segmentDescent.toFixed(0)}m\n${wp.segmentDistance.toFixed(2)}km`, // Segment column
-      // Route column always shows data
-      `+${wp.totalAscent.toFixed(0)}m\n-${wp.totalDescent.toFixed(0)}m\n${wp.totalDistance.toFixed(2)}km`, // Route column
-      index === 0 ? '—' : formatTimeHoursMinutesForMin(wp.segmentTime), // Segment time
-      penaltyDisplay, // Penalty with time in parentheses if applicable
-      index === 0 ? '—' : `${wp.stopDuration.toFixed(0)}m`, // Rest
-      formatTimeHoursMinutesForMin(wp.totalTime), // Total time
-      `${Math.round((wp.totalTime / route.waypoints[route.waypoints.length - 1].totalTime) * 100)}%`, // Progression
-      wp.hour, // Time
-      wp.comments || '' // Notes
+
+    const row = [
+      !isRest && wp.isDecisionPoint ? `${displayName}\n\n/!\\ DECISION POINT /!\\` : displayName,
     ];
+    if (cols.destinationCoords) {
+      row.push(isRest ? '' : `${wp.utm ? wp.utm.replace(/^Zone \d+[A-Z] /, '') : 'N/A'}\n${wp.elevation.toFixed(0)}m`);
+    }
+    row.push(
+      isRest || index === 0
+        ? ''
+        : `+${wp.segmentAscent.toFixed(0)}m\n-${wp.segmentDescent.toFixed(0)}m\n${wp.segmentDistance.toFixed(2)}km`,
+    );
+    if (cols.routeDistance) {
+      row.push(
+        isRest
+          ? ''
+          : `+${wp.totalAscent.toFixed(0)}m\n-${wp.totalDescent.toFixed(0)}m\n${wp.totalDistance.toFixed(2)}km`,
+      );
+    }
+    row.push(
+      isRest
+        ? formatTimeHoursMinutesForMin(rest.durationMinutes)
+        : index === 0
+          ? '—'
+          : formatTimeHoursMinutesForMin(wp.segmentTime),
+      isRest ? '' : penaltyDisplay,
+    );
+    if (cols.totalTime) {
+      row.push(formatTimeHoursMinutesForMin(isRest ? rest.totalTime : wp.totalTime));
+    }
+    if (cols.progression) {
+      row.push(
+        isRest ? '' : `${getRowProgressionPercent(getRowTimingMinutes(tableRow), routeEndTime)}%`,
+      );
+    }
+    row.push(
+      isRest ? rest.departureHour : wp.hour,
+      isRest ? '' : wp.comments || '',
+    );
+    return row;
   });
 
-  // Add safety time row
   if (route.waypoints.length > 0) {
-    const lastWaypoint = route.waypoints[route.waypoints.length - 1];
     const effectiveSettings = getEffectiveSettings(route);
-    const safetyTime = (lastWaypoint.totalTime * (effectiveSettings.safetyTimePercentage / 100));
-    const totalWithSafety = lastWaypoint.totalTime + safetyTime;
-    
-    // Calculate arrival time with safety
+    const safetyTime = routeEndTime * (effectiveSettings.safetyTimePercentage / 100);
+    const totalWithSafety = routeEndTime + safetyTime;
     const startTime = effectiveSettings.startTime || '08:00';
     const [startHours, startMinutes] = startTime.split(':').map(Number);
     const totalMinutes = startHours * 60 + startMinutes + Math.round(totalWithSafety);
     const arrivalHours = Math.floor(totalMinutes / 60) % 24;
     const arrivalMinutes = Math.round(totalMinutes % 60);
     const arrivalTime = `${arrivalHours.toString().padStart(2, '0')}:${arrivalMinutes.toString().padStart(2, '0')}`;
-    
-    tableData.push([
-      `Safety Time (${effectiveSettings.safetyTimePercentage}%)`, // Waypoint with percentage
-      '', // Position
-      '', // Segment
-      '', // Route
-      formatTimeHoursMinutesForMin(safetyTime), // Segment time
-      '', // Penalty
-      '', // Rest
-      formatTimeHoursMinutesForMin(totalWithSafety), // Total time
-      `100+${effectiveSettings.safetyTimePercentage}%`, // Progression
-      arrivalTime, // Time
-      '' // Notes
-    ]);
+
+    const safetyRow = [`Safety Time (${effectiveSettings.safetyTimePercentage}%)`];
+    if (cols.destinationCoords) safetyRow.push('');
+    safetyRow.push('');
+    if (cols.routeDistance) safetyRow.push('');
+    safetyRow.push(formatTimeHoursMinutesForMin(safetyTime), '');
+    if (cols.totalTime) safetyRow.push(formatTimeHoursMinutesForMin(totalWithSafety));
+    if (cols.progression) safetyRow.push('');
+    safetyRow.push(arrivalTime, '');
+    tableData.push(safetyRow);
   }
-  
-  // Add table
+
+  const tableHead = [t('originDestination')];
+  if (cols.destinationCoords) tableHead.push(t('destinationCoords'));
+  tableHead.push('Segment');
+  if (cols.routeDistance) tableHead.push(t('routeDistance'));
+  tableHead.push('Segment', 'Penalty (%)');
+  if (cols.totalTime) tableHead.push(t('totalTiming'));
+  if (cols.progression) tableHead.push(t('progression'));
+  tableHead.push('Time', 'Notes');
+
+  const columnStyles = {};
+  let colIndex = 0;
+  columnStyles[colIndex++] = { cellWidth: 20, halign: 'center' };
+  if (cols.destinationCoords) columnStyles[colIndex++] = { cellWidth: 25, halign: 'center' };
+  columnStyles[colIndex++] = { cellWidth: 20, halign: 'center' };
+  if (cols.routeDistance) columnStyles[colIndex++] = { cellWidth: 20, halign: 'center' };
+  columnStyles[colIndex++] = { cellWidth: 18, halign: 'center' };
+  columnStyles[colIndex++] = { cellWidth: 15, halign: 'center' };
+  if (cols.totalTime) columnStyles[colIndex++] = { cellWidth: 20, halign: 'center' };
+  if (cols.progression) columnStyles[colIndex++] = { cellWidth: 12, halign: 'center' };
+  columnStyles[colIndex++] = { cellWidth: 12, halign: 'center' };
+  columnStyles[colIndex] = { cellWidth: 'auto', halign: 'left' };
+
   autoTable(doc, {
     startY: tableStartY,
-    head: [[
-      'Waypoint',
-      'Position',
-      'Segment',
-      'Route',
-      'Segment',
-      'Penalty (%)',
-      'Rest (min)',
-      'Total',
-      'Prog.',
-      'Time',
-      'Notes'
-    ]],
+    head: [tableHead],
     body: tableData,
     theme: 'grid',
     styles: {
@@ -238,18 +267,7 @@ export function exportRouteToPDF(route, settings, language = 'en') {
       textColor: 255,
       fontStyle: 'bold'
     },
-    columnStyles: {
-      0: { cellWidth: 20, halign: 'center' }, // Waypoint
-      1: { cellWidth: 25, halign: 'center' }, // Position (UTM coordinates without zone + altitude)
-      2: { cellWidth: 20, halign: 'center' }, // Segment
-      3: { cellWidth: 20, halign: 'center' }, // Route
-      4: { cellWidth: 18, halign: 'center' }, // Segment Time
-      5: { cellWidth: 15, halign: 'center' }, // Penalty
-      6: { cellWidth: 15, halign: 'center' }, // Rest
-      7: { cellWidth: 20, halign: 'center' }, // Total Time
-      8: { cellWidth: 12, halign: 'center' }, // Time
-      9: { cellWidth: 'auto', halign: 'left' } // Notes
-    }
+    columnStyles,
   });
   
   
