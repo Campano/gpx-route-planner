@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge.jsx'
 import GitHubCorner from './components/GitHubCorner.jsx'
 import RouteMap from './components/RouteMap.jsx'
 import RouteElevationChart from './components/RouteElevationChart.jsx'
+import RouteSummaryDescription from './components/RouteSummaryDescription.jsx'
 import packageJson from '../package.json'
 import { translations, languages } from './lib/translations.js'
 import { TIME_CALCULATION_METHODS, DEFAULT_TIME_CALCULATION_METHOD } from './lib/timeCalculator.js'
@@ -1567,16 +1568,21 @@ function App() {
                       {routes.map(route => (
                         <div
                           key={route.id}
-                          className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
+                          className={`flex items-start justify-between gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                             selectedRoute?.id === route.id
                               ? 'bg-primary/10 border-primary'
                               : 'bg-card border-border hover:bg-gray-50'
                           }`}
                           onClick={() => openRoute(route)}
                         >
-                          <div className="flex items-center gap-2">
-                            <FileText className="w-4 h-4" />
-                            <span className="text-sm font-medium truncate">{route.name}</span>
+                          <div className="flex min-w-0 flex-1 items-start gap-2">
+                            <FileText className="w-4 h-4 mt-0.5 shrink-0" />
+                            <div className="min-w-0 space-y-1">
+                              <span className="block text-sm font-medium truncate">
+                                {route.name || t('unnamedRoute')}
+                              </span>
+                              <RouteSummaryDescription route={route} t={t} />
+                            </div>
                           </div>
                           <div className="relative">
                             <Button
@@ -1637,16 +1643,14 @@ function App() {
                     <h3 className="text-sm font-semibold mb-3">{t('addRouteTitle')}</h3>
                     <p className="text-xs text-muted-foreground mb-4">{t('gpxFileExplanation')}</p>
                     <div
-                      className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all duration-200 hover:border-primary hover:bg-gray-50 ${
-                        isDragOver ? 'border-primary bg-gray-50' : 'border-border'
-                      }`}
+                      className={cn('gpx-drop-zone', isDragOver && 'gpx-drop-zone--active')}
                       onDragEnter={handleDragEnter}
                       onDragLeave={handleDragLeave}
                       onDragOver={handleDragOver}
                       onDrop={handleDrop}
                     >
-                      <Upload className={`w-12 h-12 mx-auto mb-3 transition-colors ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
-                      <h4 className={`text-sm font-semibold mb-2 transition-colors ${isDragOver ? 'text-primary' : ''}`}>
+                      <Upload className="gpx-drop-zone__icon w-12 h-12 mx-auto mb-3 transition-colors" />
+                      <h4 className="gpx-drop-zone__title text-sm font-semibold mb-2 transition-colors">
                         {isDragOver ? t('dropGPXFileHere') : t('uploadGPXFile')}
                       </h4>
                       <p className="text-xs text-muted-foreground mb-3">{t('dragDropZone')}</p>
@@ -1843,37 +1847,7 @@ function App() {
                         )}
                       </CardTitle>
                     <CardDescription>
-                      <div className="text-xs space-y-1">
-                        <div className="font-medium">
-                          {selectedRoute.waypoints.length} waypoints • {selectedRoute.metadata?.totalDistance?.toFixed(2) || '0.00'} km • +{selectedRoute.metadata?.totalAscent?.toFixed(0) || '0'}m • -{selectedRoute.metadata?.totalDescent?.toFixed(0) || '0'}m • {selectedRoute.metadata?.maxElevation?.toFixed(0) || '0'}m max
-                        </div>
-                        <div 
-                          className="text-muted-foreground"
-                          dangerouslySetInnerHTML={{
-                            __html: (() => {
-                              const totalWithSafety = routeEndTime * (1 + (getEffectiveSettings(selectedRoute).safetyTimePercentage || 0) / 100);
-                              const startTime = getEffectiveSettings(selectedRoute).startTime;
-                              const [startHours, startMinutes] = startTime.split(':').map(Number);
-                              const totalMinutes = startHours * 60 + startMinutes + Math.round(totalWithSafety);
-                              const endingHours = Math.floor(totalMinutes / 60);
-                              const endingMinutes = Math.round(totalMinutes % 60);
-                              const endingTime = `${endingHours.toString().padStart(2, '0')}:${endingMinutes.toString().padStart(2, '0')}`;
-                              const duration = formatTimeHoursMinutes(totalWithSafety);
-                              const utmZones = [...new Set(selectedRoute.waypoints.map(wp => {
-                                if (!wp.utm) return null;
-                                const match = wp.utm.match(/Zone (\d+)([A-Z])/);
-                                return match ? `UTM ${match[1]}${match[2]}` : null;
-                              }).filter(Boolean))];
-                              const utmZone = utmZones.length > 0 ? utmZones.join(', ') : 'N/A';
-                              const activityMode = getEffectiveSettings(selectedRoute).activityMode || DEFAULT_ACTIVITY_MODE;
-                              const ascentSpeed = getEffectiveSettings(selectedRoute).ascentSpeed;
-                              const descentSpeed = getEffectiveSettings(selectedRoute).descentSpeed;
-                              const flatSpeed = getEffectiveSettings(selectedRoute).flatSpeed;
-                              return `${duration} • ${startTime}-${endingTime} • ${utmZone} • ${t(activityMode)} (<span class="text-xs">↑${ascentSpeed} ↓${descentSpeed} →${flatSpeed} m/h</span>)`;
-                            })()
-                          }}
-                        />
-                      </div>
+                      <RouteSummaryDescription route={selectedRoute} t={t} />
                   </CardDescription>
                 </div>
                     <div className="flex flex-col sm:flex-row items-center gap-2">

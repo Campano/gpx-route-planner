@@ -713,6 +713,49 @@ button {
   @apply p-0 rounded-none bg-transparent;
 }
 
+/* GPX drag-and-drop upload zone */
+.gpx-drop-zone {
+  border: 2px dashed color-mix(in oklab, var(--primary) 45%, var(--border));
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  background-color: color-mix(in oklab, var(--primary) 10%, var(--muted) 55%);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 20%, transparent);
+}
+
+.gpx-drop-zone:hover {
+  border-color: var(--primary);
+  background-color: color-mix(in oklab, var(--muted) 70%, var(--card));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 12%, transparent);
+}
+
+.gpx-drop-zone--active {
+  border-color: var(--primary);
+  background-color: color-mix(in oklab, var(--primary) 16%, var(--muted) 50%);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in oklab, var(--primary) 28%, transparent),
+    0 0 0 3px color-mix(in oklab, var(--primary) 18%, transparent);
+}
+
+.gpx-drop-zone .gpx-drop-zone__icon {
+  color: color-mix(in oklab, var(--primary) 55%, var(--muted-foreground));
+}
+
+.gpx-drop-zone:hover .gpx-drop-zone__icon,
+.gpx-drop-zone--active .gpx-drop-zone__icon {
+  color: var(--primary);
+}
+
+.gpx-drop-zone .gpx-drop-zone__title {
+  color: var(--foreground);
+}
+
+.gpx-drop-zone--active .gpx-drop-zone__title {
+  color: var(--primary);
+}
+
 /* Permanent waypoint names on Leaflet markers */
 .leaflet-control-fit-track {
   clear: both;
