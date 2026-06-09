@@ -48,10 +48,23 @@ export const DEFAULT_COLUMN_VISIBILITY = {
   progression: true,
 }
 
+/** Map and elevation graph visibility (both visible by default). */
+export const DEFAULT_ROUTE_VIEW_VISIBILITY = {
+  map: true,
+  elevationGraph: true,
+}
+
 export function getColumnVisibility(settings) {
   return {
     ...DEFAULT_COLUMN_VISIBILITY,
     ...(settings?.columnVisibility ?? {}),
+  }
+}
+
+export function getRouteViewVisibility(settings) {
+  return {
+    ...DEFAULT_ROUTE_VIEW_VISIBILITY,
+    ...(settings?.routeViewVisibility ?? {}),
   }
 }
 
@@ -71,6 +84,7 @@ export function createDefaultRouteSettings(activityMode = DEFAULT_ACTIVITY_MODE)
     ...DEFAULT_TRACK_PROCESSING,
     ...getModeSpeeds(activityMode),
     columnVisibility: { ...DEFAULT_COLUMN_VISIBILITY },
+    routeViewVisibility: { ...DEFAULT_ROUTE_VIEW_VISIBILITY },
   }
 }
 

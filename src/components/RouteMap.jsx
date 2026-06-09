@@ -32,6 +32,17 @@ L.Icon.Default.mergeOptions({
 
 L.Icon.Default.imagePath = ''
 
+const FIT_BOUNDS_PADDING = [24, 24]
+const FIT_BOUNDS_MAX_ZOOM = 17
+
+function fitMapToTrack(map, bounds, positions) {
+  if (bounds && positions.length >= 2) {
+    map.fitBounds(bounds, { padding: FIT_BOUNDS_PADDING, maxZoom: FIT_BOUNDS_MAX_ZOOM })
+  } else if (positions.length === 1) {
+    map.setView(positions[0], 14)
+  }
+}
+
 const MapClickHandler = ({ onAddWaypoint }) => {
   useMapEvent('click', (event) => {
     if (!onAddWaypoint) return
@@ -95,7 +106,64 @@ const MapResizeHandler = ({ panelState }) => {
   return null
 }
 
-const RouteMap = ({ route, onAddWaypoint, onRemoveWaypoint, getWaypointDisplayName, panelState }) => {
+const MapPrintHandler = () => {
+  const map = useMap()
+
+  useEffect(() => {
+    const handleBeforePrint = () => {
+      map.invalidateSize()
+      setTimeout(() => map.invalidateSize(), 150)
+    }
+
+    window.addEventListener('beforeprint', handleBeforePrint)
+    return () => window.removeEventListener('beforeprint', handleBeforePrint)
+  }, [map])
+
+  return null
+}
+
+const FitTrackControl = ({ bounds, positions, title }) => {
+  const map = useMap()
+
+  useEffect(() => {
+    const control = L.control({ position: 'topleft' })
+
+    control.onAdd = () => {
+      const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-fit-track')
+      const button = L.DomUtil.create('button', 'leaflet-control-fit-track-button', container)
+      button.type = 'button'
+      button.title = title
+      button.setAttribute('aria-label', title)
+      button.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 2v4"/>
+          <path d="M12 18v4"/>
+          <path d="M2 12h4"/>
+          <path d="M18 12h4"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      `
+
+      L.DomEvent.disableClickPropagation(button)
+      L.DomEvent.on(button, 'click', (event) => {
+        L.DomEvent.preventDefault(event)
+        L.DomEvent.stopPropagation(event)
+        fitMapToTrack(map, bounds, positions)
+      })
+
+      return container
+    }
+
+    control.addTo(map)
+    return () => {
+      control.remove()
+    }
+  }, [map, bounds, positions, title])
+
+  return null
+}
+
+const RouteMap = ({ route, onAddWaypoint, onRemoveWaypoint, getWaypointDisplayName, panelState, recenterTitle }) => {
   const waypoints = route?.waypoints ?? []
   const trackPoints = useMemo(() => {
     return route?.gpxData?.tracks?.flatMap((track) => track.points ?? []) ?? []
@@ -143,6 +211,8 @@ const RouteMap = ({ route, onAddWaypoint, onRemoveWaypoint, getWaypointDisplayNa
 
       <MapClickHandler onAddWaypoint={onAddWaypoint} />
       <MapResizeHandler panelState={panelState} />
+      <MapPrintHandler />
+      <FitTrackControl bounds={bounds} positions={positions} title={recenterTitle} />
 
       {positions.length > 1 && (
         <Polyline 

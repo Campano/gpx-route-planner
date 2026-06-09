@@ -405,9 +405,39 @@
     display: block !important;
   }
   
-  /* Map is interactive-only */
-  .route-map-print-hide {
-    display: none !important;
+  /* Route map on paper */
+  .route-map-print {
+    display: block !important;
+    visibility: visible !important;
+    height: 240px !important;
+    min-height: 240px !important;
+    max-height: 240px !important;
+    overflow: visible !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .route-map-print .leaflet-container {
+    height: 100% !important;
+    width: 100% !important;
+    visibility: visible !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .route-elevation-print {
+    display: block !important;
+    visibility: visible !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .route-elevation-print .recharts-surface {
+    overflow: visible !important;
   }
 
   /* Table wrapper: avoid horizontal clip on paper */
@@ -684,6 +714,37 @@ button {
 }
 
 /* Permanent waypoint names on Leaflet markers */
+.leaflet-control-fit-track {
+  clear: both;
+  margin-top: 2px;
+}
+
+.leaflet-control-fit-track-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+}
+
+.leaflet-control-fit-track-button:hover {
+  background: #f4f4f4;
+}
+
+.dark .leaflet-control-fit-track-button {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+.dark .leaflet-control-fit-track-button:hover {
+  background: #334155;
+}
+
 .leaflet-tooltip.waypoint-map-label {
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(15, 23, 42, 0.2);

@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table.jsx'
-import { Upload, Mountain, Settings2, FileText, Trash2, Download, EyeOff, Home, Edit3, AlertTriangle, X, OctagonPause, Footprints, Snowflake, Zap, Heart, FileSpreadsheet, Info, AlertCircle, Clock, MapPin, FileDown, CircleHelp, Route, Timer, Columns3 } from 'lucide-react'
+import { Upload, Mountain, Settings2, FileText, Trash2, Download, EyeOff, Home, Edit3, AlertTriangle, X, OctagonPause, Footprints, Snowflake, Zap, Heart, FileSpreadsheet, Info, AlertCircle, Clock, MapPin, FileDown, CircleHelp, Route, Timer, Columns3, Map } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip.jsx'
 import { parseGPXFile, recalculateWaypoints, recalculateWaypointGeometry, formatTimeHoursMinutes, formatTimeHoursMinutesForMin, formatTotalTimeWithPercentage } from './lib/calculationService.js'
@@ -16,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox.jsx'
 import { Badge } from '@/components/ui/badge.jsx'
 import GitHubCorner from './components/GitHubCorner.jsx'
 import RouteMap from './components/RouteMap.jsx'
+import RouteElevationChart from './components/RouteElevationChart.jsx'
 import packageJson from '../package.json'
 import { translations, languages } from './lib/translations.js'
 import { TIME_CALCULATION_METHODS, DEFAULT_TIME_CALCULATION_METHOD } from './lib/timeCalculator.js'
@@ -38,6 +39,7 @@ import {
   DEFAULT_APP_SETTINGS,
   createDefaultRouteSettings,
   getColumnVisibility,
+  getRouteViewVisibility,
   getEffectiveRouteSettings,
   getModeSpeeds,
   loadAppSettings,
@@ -1041,7 +1043,20 @@ function App() {
     })
   }
 
+  const getRouteView = () =>
+    selectedRoute ? getRouteViewVisibility(getEffectiveSettings(selectedRoute)) : getRouteViewVisibility({})
+
+  const toggleRouteViewVisibility = (viewKey) => {
+    if (!selectedRoute) return
+    const current = getRouteViewVisibility(getEffectiveSettings(selectedRoute))
+    updateRouteSettings('routeViewVisibility', {
+      ...current,
+      [viewKey]: !current[viewKey],
+    })
+  }
+
   const visibleColumns = getVisibleColumns()
+  const routeView = getRouteView()
   const distanceGroupColSpan =
     (visibleColumns.destinationCoords ? 1 : 0) +
     1 +
@@ -1905,15 +1920,33 @@ function App() {
             </CardHeader>
             <CardContent>
                 <div className="space-y-6">
-                  {selectedRoute?.waypoints?.length > 0 && (
-                    <div className="route-map-print-hide h-96 w-full overflow-hidden rounded-lg border border-border">
-                      <RouteMap
-                        route={selectedRoute}
-                        onAddWaypoint={handleAddWaypointAtPosition}
-                        onRemoveWaypoint={handleRemoveWaypoint}
-                        getWaypointDisplayName={getPointLabel}
-                        panelState={activePanel}
-                      />
+                  {selectedRoute?.waypoints?.length > 0 && (routeView.map || routeView.elevationGraph) && (
+                    <div className="space-y-4">
+                      {routeView.map && (
+                        <div className="route-map-print h-96 w-full overflow-hidden rounded-lg border border-border">
+                          <RouteMap
+                            route={selectedRoute}
+                            onAddWaypoint={handleAddWaypointAtPosition}
+                            onRemoveWaypoint={handleRemoveWaypoint}
+                            getWaypointDisplayName={getPointLabel}
+                            panelState={activePanel}
+                            recenterTitle={t('recenterMapOnTrack')}
+                          />
+                        </div>
+                      )}
+                      {routeView.elevationGraph && (
+                        <div className="route-elevation-print rounded-lg border border-border bg-card">
+                          <div className="border-b border-border px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
+                            {t('elevationGraph')}
+                          </div>
+                          <div className="h-56 w-full p-2">
+                            <RouteElevationChart
+                              route={selectedRoute}
+                              getWaypointDisplayName={getPointLabel}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                   {/* Waypoint Table */}
@@ -2693,6 +2726,28 @@ function App() {
                           </div>
                         )}
                         </div>
+                </RouteConfigSection>
+
+                <RouteConfigSection title={t('routeView')} icon={Map}>
+                    <p className="text-[10px] text-muted-foreground leading-snug">{t('routeViewDesc')}</p>
+                    <div className="space-y-1">
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <Checkbox
+                          checked={routeView.map}
+                          onCheckedChange={() => toggleRouteViewVisibility('map')}
+                          className="h-3.5 w-3.5"
+                        />
+                        <span className="text-[11px]">{t('showMap')}</span>
+                      </label>
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <Checkbox
+                          checked={routeView.elevationGraph}
+                          onCheckedChange={() => toggleRouteViewVisibility('elevationGraph')}
+                          className="h-3.5 w-3.5"
+                        />
+                        <span className="text-[11px]">{t('showElevationGraph')}</span>
+                      </label>
+                    </div>
                 </RouteConfigSection>
 
                 <RouteConfigSection title={t('columns')} icon={Columns3}>
