@@ -8,9 +8,6 @@ importers:
 
   .:
     dependencies:
-      '@hookform/resolvers':
-        specifier: ^5.0.1
-        version: 5.0.1(react-hook-form@7.56.3(react@19.1.0))
       '@radix-ui/react-accordion':
         specifier: ^1.2.10
         version: 1.2.10(@types/react-dom@19.1.5(@types/react@19.1.4))(@types/react@19.1.4)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -110,9 +107,6 @@ importers:
       embla-carousel-react:
         specifier: ^8.6.0
         version: 8.6.0(react@19.1.0)
-      framer-motion:
-        specifier: ^12.15.0
-        version: 12.15.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       input-otp:
         specifier: ^1.4.2
         version: 1.4.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -149,9 +143,6 @@ importers:
       react-resizable-panels:
         specifier: ^3.0.2
         version: 3.0.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      react-router-dom:
-        specifier: ^7.6.1
-        version: 7.6.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       recharts:
         specifier: ^2.15.3
         version: 2.15.3(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -170,9 +161,6 @@ importers:
       vaul:
         specifier: ^1.1.2
         version: 1.1.2(@types/react-dom@19.1.5(@types/react@19.1.4))(@types/react@19.1.4)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      zod:
-        specifier: ^3.24.4
-        version: 3.24.4
     devDependencies:
       '@eslint/js':
         specifier: ^9.25.0
@@ -508,11 +496,6 @@ packages:
 
   '@floating-ui/utils@0.2.9':
     resolution: {integrity: sha512-MDWhGtE+eHw5JW7lq4qhc5yRLS11ERl1c7Z6Xd0a58DozHES6EnNNwUWbMiG4J9Cgj053Bhk8zvlhFYKVhULwg==}
-
-  '@hookform/resolvers@5.0.1':
-    resolution: {integrity: sha512-u/+Jp83luQNx9AdyW2fIPGY6Y7NG68eN2ZW8FOJYL+M0i4s49+refdJdOp/A9n9HFQtQs3HIDHQvX3ZET2o7YA==}
-    peerDependencies:
-      react-hook-form: ^7.55.0
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -1297,9 +1280,6 @@ packages:
   '@standard-schema/spec@1.0.0':
     resolution: {integrity: sha512-m2bOd0f2RT9k8QJx1JN85cZYyH1RqFBdlwtkSlf4tBDYLCiiZnv1fIIwacK6cqwXavOydf0NPToMQgpKq+dVlA==}
 
-  '@standard-schema/utils@0.3.0':
-    resolution: {integrity: sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==}
-
   '@tailwindcss/node@4.1.7':
     resolution: {integrity: sha512-9rsOpdY9idRI2NH6CL4wORFY0+Q6fnx9XP9Ju+iq/0wJwGD5IByIgFmwVbyy4ymuyprj8Qh4ErxMKTUL4uNh3g==}
 
@@ -1651,10 +1631,6 @@ packages:
     resolution: {integrity: sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w==}
     engines: {node: '>= 0.6'}
 
-  cookie@1.0.2:
-    resolution: {integrity: sha512-9Kr/j4O16ISv8zBBhJoi4bXOYNTkFLOqSL3UDB0njXxCXNezjeyVrJyGOWtgfs/q2km1gwBcfH8q1yEGoMYunA==}
-    engines: {node: '>=18'}
-
   core-js@3.46.0:
     resolution: {integrity: sha512-vDMm9B0xnqqZ8uSBpZ8sNtRtOdmfShrvT6h2TuQGLs0Is+cR0DYbj/KWP6ALVNbWPpqA/qPLoOuppJN07humpA==}
 
@@ -2004,20 +1980,6 @@ packages:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
     engines: {node: '>= 0.6'}
 
-  framer-motion@12.15.0:
-    resolution: {integrity: sha512-XKg/LnKExdLGugZrDILV7jZjI599785lDIJZLxMiiIFidCsy0a4R2ZEf+Izm67zyOuJgQYTHOmodi7igQsw3vg==}
-    peerDependencies:
-      '@emotion/is-prop-valid': '*'
-      react: ^18.0.0 || ^19.0.0
-      react-dom: ^18.0.0 || ^19.0.0
-    peerDependenciesMeta:
-      '@emotion/is-prop-valid':
-        optional: true
-      react:
-        optional: true
-      react-dom:
-        optional: true
-
   fresh@2.0.0:
     resolution: {integrity: sha512-Rx/WycZ60HOaqLKAi6cHRKKI7zxWbJ31MhntmtwMoaTeF7XFH9hhBp8vITaMidfljRQ6eYWCKkaTK+ykVJHP2A==}
     engines: {node: '>= 0.8'}
@@ -2359,12 +2321,6 @@ packages:
     engines: {node: '>=10'}
     hasBin: true
 
-  motion-dom@12.15.0:
-    resolution: {integrity: sha512-D2ldJgor+2vdcrDtKJw48k3OddXiZN1dDLLWrS8kiHzQdYVruh0IoTwbJBslrnTXIPgFED7PBN2Zbwl7rNqnhA==}
-
-  motion-utils@12.12.1:
-    resolution: {integrity: sha512-f9qiqUHm7hWSLlNW8gS9pisnsN7CRFRD58vNjptKdsqFLpkVnX00TNeD6Q0d27V9KzT7ySFyK1TZ/DShfVOv6w==}
-
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
 
@@ -2581,23 +2537,6 @@ packages:
       react: ^16.14.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
       react-dom: ^16.14.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
 
-  react-router-dom@7.6.1:
-    resolution: {integrity: sha512-vxU7ei//UfPYQ3iZvHuO1D/5fX3/JOqhNTbRR+WjSBWxf9bIvpWK+ftjmdfJHzPOuMQKe2fiEdG+dZX6E8uUpA==}
-    engines: {node: '>=20.0.0'}
-    peerDependencies:
-      react: '>=18'
-      react-dom: '>=18'
-
-  react-router@7.6.1:
-    resolution: {integrity: sha512-hPJXXxHJZEsPFNVbtATH7+MMX43UDeOauz+EAU4cgqTn7ojdI9qQORqS8Z0qmDlL1TclO/6jLRYUEtbWidtdHQ==}
-    engines: {node: '>=20.0.0'}
-    peerDependencies:
-      react: '>=18'
-      react-dom: '>=18'
-    peerDependenciesMeta:
-      react-dom:
-        optional: true
-
   react-smooth@4.0.4:
     resolution: {integrity: sha512-gnGKTpYwqL0Iii09gHobNolvX4Kiq4PKx6eWBCYYix+8cdw+cGo3do906l1NBPKkSWx1DghC1dlWG9L2uGd61Q==}
     peerDependencies:
@@ -2681,9 +2620,6 @@ packages:
   serve-static@2.2.0:
     resolution: {integrity: sha512-61g9pCh0Vnh7IutZjtLGGpTA355+OPn2TyDv/6ivP2h/AdAVX9azsoxmg2/M6nZeQZNYBEwIcsne1mJd9oQItQ==}
     engines: {node: '>= 18'}
-
-  set-cookie-parser@2.7.1:
-    resolution: {integrity: sha512-IOc8uWeOZgnb3ptbCURJWNjWUPcO3ZnTTdzsurqERrP6nPyv+paC55vJM0LpOlT2ne+Ix+9+CRG1MNLlyZ4GjQ==}
 
   setprototypeof@1.2.0:
     resolution: {integrity: sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==}
@@ -3258,11 +3194,6 @@ snapshots:
       react-dom: 19.1.0(react@19.1.0)
 
   '@floating-ui/utils@0.2.9': {}
-
-  '@hookform/resolvers@5.0.1(react-hook-form@7.56.3(react@19.1.0))':
-    dependencies:
-      '@standard-schema/utils': 0.3.0
-      react-hook-form: 7.56.3(react@19.1.0)
 
   '@humanfs/core@0.19.1': {}
 
@@ -4048,8 +3979,6 @@ snapshots:
 
   '@standard-schema/spec@1.0.0': {}
 
-  '@standard-schema/utils@0.3.0': {}
-
   '@tailwindcss/node@4.1.7':
     dependencies:
       '@ampproject/remapping': 2.3.0
@@ -4402,8 +4331,6 @@ snapshots:
   cookie-signature@1.2.2: {}
 
   cookie@0.7.2: {}
-
-  cookie@1.0.2: {}
 
   core-js@3.46.0:
     optional: true
@@ -4794,15 +4721,6 @@ snapshots:
 
   forwarded@0.2.0: {}
 
-  framer-motion@12.15.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
-    dependencies:
-      motion-dom: 12.15.0
-      motion-utils: 12.12.1
-      tslib: 2.8.1
-    optionalDependencies:
-      react: 19.1.0
-      react-dom: 19.1.0(react@19.1.0)
-
   fresh@2.0.0: {}
 
   fs-extra@11.3.2:
@@ -5103,12 +5021,6 @@ snapshots:
 
   mkdirp@3.0.1: {}
 
-  motion-dom@12.15.0:
-    dependencies:
-      motion-utils: 12.12.1
-
-  motion-utils@12.12.1: {}
-
   ms@2.1.3: {}
 
   nanoid@3.3.11: {}
@@ -5290,20 +5202,6 @@ snapshots:
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
 
-  react-router-dom@7.6.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
-    dependencies:
-      react: 19.1.0
-      react-dom: 19.1.0(react@19.1.0)
-      react-router: 7.6.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-
-  react-router@7.6.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
-    dependencies:
-      cookie: 1.0.2
-      react: 19.1.0
-      set-cookie-parser: 2.7.1
-    optionalDependencies:
-      react-dom: 19.1.0(react@19.1.0)
-
   react-smooth@4.0.4(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
     dependencies:
       fast-equals: 5.2.2
@@ -5430,8 +5328,6 @@ snapshots:
       send: 1.2.0
     transitivePeerDependencies:
       - supports-color
-
-  set-cookie-parser@2.7.1: {}
 
   setprototypeof@1.2.0: {}
 

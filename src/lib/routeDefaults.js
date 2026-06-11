@@ -1,58 +1,22 @@
-import { DEFAULT_TRACK_PROCESSING } from './trackProcessing.js'
 import {
-  DEFAULT_DOWNHILL_FACTOR,
-  DEFAULT_TIME_CALCULATION_METHOD,
-} from './timeCalculator.js'
+  APP_SETTINGS_STORAGE_KEY,
+  DEFAULT_ACTIVITY_MODE,
+  DEFAULT_ACTIVITY_MODES,
+  DEFAULT_APP_SETTINGS,
+  DEFAULT_COLUMN_VISIBILITY,
+  DEFAULT_ROUTE_SETTINGS,
+  DEFAULT_ROUTE_VIEW_VISIBILITY,
+  DEFAULT_TRACK_PROCESSING,
+} from './constants.js'
 
-/** Default speeds per activity mode (m/h) — used for new routes and mode presets */
-export const DEFAULT_ACTIVITY_MODES = {
-  hiking: {
-    ascentSpeed: 300,
-    descentSpeed: 500,
-    flatSpeed: 4000,
-  },
-  snowshoes: {
-    ascentSpeed: 250,
-    descentSpeed: 400,
-    flatSpeed: 3200,
-  },
-  skiTouring: {
-    ascentSpeed: 400,
-    descentSpeed: 600,
-    flatSpeed: 4000,
-  },
-}
-
-export const DEFAULT_ACTIVITY_MODE = 'hiking'
-
-export const DEFAULT_ROUTE_SETTINGS = {
-  activityMode: DEFAULT_ACTIVITY_MODE,
-  startTime: '08:00',
-  distanceCalculationMethod: 'track',
-  safetyTimePercentage: 20,
-  timeCalculationMethod: DEFAULT_TIME_CALCULATION_METHOD,
-  downhillFactor: DEFAULT_DOWNHILL_FACTOR,
-  ...DEFAULT_TRACK_PROCESSING,
-  ...DEFAULT_ACTIVITY_MODES[DEFAULT_ACTIVITY_MODE],
-}
-
-export const DEFAULT_APP_SETTINGS = {
-  suppressWaypointModificationWarning: false,
-}
-
-/** Optional table columns (all visible by default). */
-export const DEFAULT_COLUMN_VISIBILITY = {
-  destinationCoords: true,
-  routeDistance: true,
-  totalTime: true,
-  progression: true,
-}
-
-/** Map and elevation graph visibility (both visible by default). */
-export const DEFAULT_ROUTE_VIEW_VISIBILITY = {
-  map: true,
-  elevationGraph: true,
-}
+export {
+  DEFAULT_ACTIVITY_MODE,
+  DEFAULT_ACTIVITY_MODES,
+  DEFAULT_APP_SETTINGS,
+  DEFAULT_COLUMN_VISIBILITY,
+  DEFAULT_ROUTE_SETTINGS,
+  DEFAULT_ROUTE_VIEW_VISIBILITY,
+} from './constants.js'
 
 export function getColumnVisibility(settings) {
   return {
@@ -98,7 +62,7 @@ export function getEffectiveRouteSettings(route) {
 }
 
 export function loadAppSettings() {
-  const saved = localStorage.getItem('mountainSettings')
+  const saved = localStorage.getItem(APP_SETTINGS_STORAGE_KEY)
   if (!saved) {
     return { ...DEFAULT_APP_SETTINGS }
   }

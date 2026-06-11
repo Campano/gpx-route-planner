@@ -7,7 +7,11 @@ import { parseGPX } from '@we-gold/gpxjs';
 import { fromLatLon } from 'utm';
 import { processTrackPoints } from './trackProcessing.js';
 import { createRestId } from './routeTableRows.js';
-import { PROXIMITY_THRESHOLD_M } from './proximityConstants.js';
+import {
+  MAX_SAMPLED_WAYPOINTS,
+  PROXIMITY_THRESHOLD_M,
+  TRACK_POINT_PRECISION_TOLERANCE_M,
+} from './constants.js';
 
 function restsFromStopDuration(stopDuration) {
   const minutes = stopDuration || 0
@@ -15,22 +19,8 @@ function restsFromStopDuration(stopDuration) {
   return [{ id: createRestId(), durationMinutes: minutes }]
 }
 
-/**
- * Distance constants for GPX parsing and waypoint matching
- * All distances are in meters
- */
-
-// Unified distance threshold for waypoint proximity matching
-// Used for: coordinate matching (determining if two coordinates represent the same point),
-// finding closest track points, matching waypoints to tracks, and duplicate detection
-// Two waypoints/coordinates within this distance are considered the same or related point
 const PROXIMITY_THRESHOLD = PROXIMITY_THRESHOLD_M;
-
-// High-precision tolerance for checking if start/end points exactly match track points
-const TRACK_POINT_PRECISION_TOLERANCE = 0.1; // meters (100mm)
-
-// Maximum number of waypoints to sample when no GPX waypoints exist
-const MAX_SAMPLED_WAYPOINTS = 20;
+const TRACK_POINT_PRECISION_TOLERANCE = TRACK_POINT_PRECISION_TOLERANCE_M;
 
 /**
  * Calculate distance between two points using Haversine formula

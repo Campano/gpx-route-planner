@@ -3,13 +3,10 @@
  * Adapted from Timewise-GPX (MIT) — applied to geometry only, not time.
  */
 
+import { DEFAULT_TRACK_PROCESSING } from './constants.js'
 import { calculateDistance } from './trackProcessingUtils.js'
 
-export const DEFAULT_TRACK_PROCESSING = {
-  resampleSpacingM: 3,
-  smoothWindowM: 15,
-  elevationDeadbandM: 2,
-}
+export { DEFAULT_TRACK_PROCESSING } from './constants.js'
 
 function clamp(x, a, b) {
   return Math.max(a, Math.min(b, x))

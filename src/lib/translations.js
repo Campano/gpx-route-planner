@@ -158,11 +158,6 @@ export const translations = {
     start: "Start",
     end: "End",
     
-    // Beta Version Notice
-    betaVersion: "Beta Version",
-    betaNotice: "This service is currently in its testing phase. Your feedback is valuable and helps us improve! Please share your suggestions and report any issues on the",
-    issuesPage: "GitHub issues page",
-    
     // Additional UI elements
     language: "Language",
     uploadGPXFile: "Upload GPX file",
@@ -472,11 +467,6 @@ export const translations = {
     safetyTime: "Temps de Sécurité",
     start: "Départ",
     end: "Arrivée",
-    
-    // Beta Version Notice
-    betaVersion: "Version Bêta",
-    betaNotice: "Ce service est actuellement en phase de test. Votre retour est précieux et nous aide à nous améliorer ! N'hésitez pas à partager vos suggestions et à signaler tout problème sur la",
-    issuesPage: "page des problèmes GitHub",
     
     // Additional UI elements
     language: "Langue",
@@ -805,11 +795,6 @@ export const translations = {
     start: "Inicio",
     end: "Final",
     
-    // Beta Version Notice
-    betaVersion: "Versión Beta",
-    betaNotice: "Este servicio está actualmente en su fase de prueba. ¡Tus comentarios son valiosos y nos ayudan a mejorar! Por favor comparte tus sugerencias e informa de cualquier problema en la",
-    issuesPage: "página de problemas de GitHub",
-    
     // Additional UI elements
     language: "Idioma",
     uploadGPXFile: "Subir archivo GPX",
@@ -1131,11 +1116,6 @@ export const translations = {
     safetyTime: "Temps de Seguretat",
     start: "Inici",
     end: "Final",
-    
-    // Beta Version Notice
-    betaVersion: "Versió Beta",
-    betaNotice: "Aquest servei està actualment en la seva fase de proves. El vostre feedback és valuós i ens ajuda a millorar! Si us plau, compartiu les vostres suggeriments i informeu de qualsevol problema a la",
-    issuesPage: "pàgina de problemes de GitHub",
     
     // Additional UI elements
     language: "Idioma",

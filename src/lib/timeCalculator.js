@@ -2,18 +2,19 @@
  * Utilities for computing movement times and formatting time strings.
  */
 
+import {
+  DEFAULT_DOWNHILL_FACTOR,
+  DEFAULT_TIME_CALCULATION_METHOD,
+  TIME_CALCULATION_METHODS,
+} from './constants.js'
 import { getTrackPathBetweenWaypoints } from './gpxParser.js'
 import { calculateDistance } from './trackProcessingUtils.js'
 
-/** @typedef {'additive' | 'activity_blend'} TimeCalculationMethod */
-
-export const TIME_CALCULATION_METHODS = {
-  ADDITIVE: 'additive',
-  ACTIVITY_BLEND: 'activity_blend',
-}
-
-export const DEFAULT_TIME_CALCULATION_METHOD = TIME_CALCULATION_METHODS.ACTIVITY_BLEND
-export const DEFAULT_DOWNHILL_FACTOR = 2 / 3
+export {
+  DEFAULT_DOWNHILL_FACTOR,
+  DEFAULT_TIME_CALCULATION_METHOD,
+  TIME_CALCULATION_METHODS,
+} from './constants.js'
 
 function validatePositiveNumber(value, fallback) {
   if (!isFinite(value) || value <= 0) {

@@ -1,4 +1,4 @@
-import { PROXIMITY_THRESHOLD_M } from './proximityConstants.js'
+import { PROXIMITY_THRESHOLD_M } from './constants.js'
 
 function haversineMeters(lat1, lon1, lat2, lon2) {
   const R = 6371000

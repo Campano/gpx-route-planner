@@ -20,7 +20,7 @@ import RouteElevationChart from './components/RouteElevationChart.jsx'
 import RouteSummaryDescription from './components/RouteSummaryDescription.jsx'
 import packageJson from '../package.json'
 import { translations, languages } from './lib/translations.js'
-import { TIME_CALCULATION_METHODS, DEFAULT_TIME_CALCULATION_METHOD } from './lib/timeCalculator.js'
+import { TIME_CALCULATION_METHODS, DEFAULT_TIME_CALCULATION_METHOD, APP_SETTINGS_STORAGE_KEY, EARTH_RADIUS_METERS, DEG_TO_RAD } from './lib/constants.js'
 import {
   getLegDescription as buildLegDescription,
   getPointLabel as buildPointLabel,
@@ -47,9 +47,6 @@ import {
 } from './lib/routeDefaults.js'
 import 'leaflet/dist/leaflet.css'
 import './App.css'
-
-const EARTH_RADIUS_METERS = 6371000
-const DEG_TO_RAD = Math.PI / 180
 
 const toECEF = (latitude, longitude) => {
   const phi = latitude * DEG_TO_RAD
@@ -541,7 +538,7 @@ function App() {
 
   // Save app preferences to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('mountainSettings', JSON.stringify(appSettings))
+    localStorage.setItem(APP_SETTINGS_STORAGE_KEY, JSON.stringify(appSettings))
   }, [appSettings])
 
   const getEffectiveSettings = getEffectiveRouteSettings
@@ -1470,7 +1467,7 @@ function App() {
     
     // Clear localStorage
     localStorage.removeItem('mountainRoutes')
-    localStorage.removeItem('mountainSettings')
+    localStorage.removeItem(APP_SETTINGS_STORAGE_KEY)
     localStorage.removeItem('mountain-route-planner-language')
     
     // Close dialog
@@ -1478,28 +1475,8 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen p-6 relative">
+    <div className="app-shell min-h-screen p-6 relative">
       <GitHubCorner url="https://github.com/Campano/gpx-route-planner/issues" />
-      
-      {/* Beta Version Notice Banner */}
-      <div className="beta-warning-banner bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 px-4 py-2 -m-6 mb-6">
-        <div className="max-w-7xl mx-auto flex items-center gap-2 text-sm text-blue-800 dark:text-blue-200">
-          <Info className="w-4 h-4 flex-shrink-0" />
-          <span className="font-medium">{t('betaVersion')}:</span>
-          <span>
-            {t('betaNotice')}{' '}
-            <a 
-              href="https://github.com/Campano/gpx-route-planner/issues" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="underline hover:text-blue-900 dark:hover:text-blue-100"
-            >
-              {t('issuesPage')}
-            </a>
-            .
-          </span>
-        </div>
-      </div>
       
       <div className="max-w-7xl mx-auto space-y-6 panel-transition">
         {/* Header */}

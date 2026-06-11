@@ -2,7 +2,7 @@
  * GPX Export Service for exporting routes to GPX format
  */
 
-import { PROXIMITY_THRESHOLD_M } from './proximityConstants.js'
+import { PROXIMITY_THRESHOLD_M } from './constants.js'
 
 /**
  * Export route to GPX format

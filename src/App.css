@@ -43,23 +43,25 @@
 
 :root {
   --radius: 0.75rem;
-  --background: oklch(0.98 0.01 240);
+  --contour-tile: 1000px 700px;
+  --contour-image: url('/contour_map.svg');
+  --background: oklch(0.985 0.034 148);
   --foreground: oklch(0.15 0.02 240);
-  --card: oklch(0.99 0.005 240 / 0.8);
+  --card: oklch(0.998 0.004 145 / 0.94);
   --card-foreground: oklch(0.15 0.02 240);
-  --popover: oklch(0.99 0.005 240 / 0.95);
+  --popover: oklch(0.998 0.004 145 / 0.97);
   --popover-foreground: oklch(0.15 0.02 240);
   --primary: oklch(0.45 0.15 160); /* Forest green */
   --primary-foreground: oklch(0.98 0.01 240);
   --secondary: oklch(0.92 0.05 200); /* Sky blue */
   --secondary-foreground: oklch(0.15 0.02 240);
-  --muted: oklch(0.94 0.02 240);
+  --muted: oklch(0.982 0.006 145);
   --muted-foreground: oklch(0.5 0.02 240);
   --accent: oklch(0.65 0.12 30); /* Sunset orange */
   --accent-foreground: oklch(0.98 0.01 240);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.9 0.02 240 / 0.3);
-  --input: oklch(0.95 0.02 240 / 0.5);
+  --input: oklch(0.997 0.004 145 / 0.92);
   --ring: oklch(0.45 0.15 160);
   --chart-1: oklch(0.45 0.15 160); /* Forest green */
   --chart-2: oklch(0.6 0.12 200); /* Sky blue */
@@ -77,7 +79,8 @@
 }
 
 .dark {
-  --background: oklch(0.08 0.01 240);
+  --contour-image: url('/contour_map_dark.svg');
+  --background: oklch(0.11 0.022 150);
   --foreground: oklch(0.95 0.01 240);
   --card: oklch(0.12 0.02 240 / 0.8);
   --card-foreground: oklch(0.95 0.01 240);
@@ -114,11 +117,48 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    min-height: 100%;
+  }
+
   body {
     @apply text-foreground;
-    background: oklch(0.97 0.03 160);
-    transition: all 0.3s ease;
+    position: relative;
+    min-height: 100%;
+    background-color: var(--background);
+    background-image: radial-gradient(
+      ellipse 90% 55% at 50% -8%,
+      oklch(0.995 0.04 145 / 0.45),
+      transparent 72%
+    );
+    transition: background-color 0.3s ease;
   }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: var(--contour-image);
+    background-size: var(--contour-tile);
+    background-repeat: repeat;
+    background-position: center top;
+  }
+
+  .dark body {
+    background-image: radial-gradient(
+      ellipse 80% 50% at 50% 0%,
+      oklch(0.16 0.03 150 / 0.35),
+      transparent 68%
+    );
+  }
+}
+
+/* Main shell — transparent so body contour background shows in gaps */
+.app-shell {
+  background: transparent;
 }
 
 /* GitHub corner styles */
@@ -327,6 +367,15 @@
 
 /* Print styles */
 @media print {
+  body {
+    background: white !important;
+    background-image: none !important;
+  }
+
+  body::before {
+    display: none !important;
+  }
+
   /* Hide all buttons and interactive elements */
   button,
   .btn-primary,
@@ -342,11 +391,6 @@
   
   /* Hide warning banner */
   .bg-yellow-50 {
-    display: none !important;
-  }
-  
-  /* Hide beta version warning banner */
-  .beta-warning-banner {
     display: none !important;
   }
   
@@ -669,7 +713,7 @@ button {
 }
 
 .settings-input {
-  @apply mt-1 bg-background;
+  @apply mt-1 bg-card;
 }
 
 .route-config-panel [data-slot="card-header"] {
@@ -702,7 +746,7 @@ button {
 }
 
 .route-config-section__body {
-  @apply rounded-md border border-border bg-muted/25 p-2.5 flex flex-col gap-2;
+  @apply rounded-md border border-border bg-card p-2.5 flex flex-col gap-2;
 }
 
 .route-config-section__body .route-config-subsection {
@@ -721,19 +765,19 @@ button {
   text-align: center;
   cursor: pointer;
   transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
-  background-color: color-mix(in oklab, var(--primary) 10%, var(--muted) 55%);
-  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 20%, transparent);
+  background-color: oklch(0.995 0.008 145 / 0.95);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 14%, transparent);
 }
 
 .gpx-drop-zone:hover {
   border-color: var(--primary);
-  background-color: color-mix(in oklab, var(--muted) 70%, var(--card));
+  background-color: oklch(0.992 0.012 145 / 0.98);
   box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--primary) 12%, transparent);
 }
 
 .gpx-drop-zone--active {
   border-color: var(--primary);
-  background-color: color-mix(in oklab, var(--primary) 16%, var(--muted) 50%);
+  background-color: oklch(0.99 0.016 145 / 0.98);
   box-shadow:
     inset 0 0 0 1px color-mix(in oklab, var(--primary) 28%, transparent),
     0 0 0 3px color-mix(in oklab, var(--primary) 18%, transparent);
