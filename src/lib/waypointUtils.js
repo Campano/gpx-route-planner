@@ -1,16 +1,5 @@
 import { PROXIMITY_THRESHOLD_M } from './constants.js'
-
-function haversineMeters(lat1, lon1, lat2, lon2) {
-  const R = 6371000
-  const dLat = ((lat2 - lat1) * Math.PI) / 180
-  const dLon = ((lon2 - lon1) * Math.PI) / 180
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) ** 2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-}
+import { calculateDistanceMeters } from './utils.js'
 
 export const coordinatesMatch = (pointA, pointB, maxDistanceM = PROXIMITY_THRESHOLD_M) => {
   if (!pointA || !pointB) return false
@@ -24,7 +13,7 @@ export const coordinatesMatch = (pointA, pointB, maxDistanceM = PROXIMITY_THRESH
     return false
   }
 
-  return haversineMeters(latA, lonA, latB, lonB) <= maxDistanceM
+  return calculateDistanceMeters(latA, lonA, latB, lonB) <= maxDistanceM
 }
 
 const findMatchingWaypointAtSameLocation = (route, waypoint, excludeFlags = {}) => {

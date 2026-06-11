@@ -23,9 +23,11 @@ flowchart TB
   App --> routeDefaults
   App --> routeTableRows
   App --> waypointUtils
+  App --> elevationProfile
   App --> constants
   App --> translations
 
+  RouteMap --> elevationProfile
   RouteElevationChart --> elevationProfile
   RouteSummaryDescription --> routeDefaults
   RouteSummaryDescription --> calculationService
@@ -38,15 +40,18 @@ flowchart TB
   gpxParser --> trackProcessing
   gpxParser --> routeTableRows
   gpxParser --> constants
+  gpxParser --> utils
 
   timeCalculator --> gpxParser
-  timeCalculator --> trackProcessingUtils
+  timeCalculator --> utils
   timeCalculator --> constants
 
-  trackProcessing --> trackProcessingUtils
+  trackProcessing --> utils
   trackProcessing --> constants
 
-  elevationProfile --> trackProcessingUtils
+  elevationProfile --> utils
+  gpxExportService --> utils
+  waypointUtils --> utils
 
   routeTableRows --> waypointUtils
   waypointUtils --> constants
@@ -63,7 +68,24 @@ flowchart TB
 
 **Typical GPX import path:** `App` → `calculationService` → `gpxParser` (geometry) + `timeCalculator` (times) + `routeTableRows` (normalize waypoints).
 
-**Note:** `timeCalculator` reads track segments from `gpxParser` for track-based time models. Import is one-way (no cycle).
+**Note:** `timeCalculator` calls `gpxParser.getTrackPathBetweenWaypoints` for the Swiss alpine club model. Import is one-way (no cycle).
+
+---
+
+## GPX processing pipeline
+
+Raw GPX content is always kept in `route.gpxContent` (unchanged on disk / in storage).
+
+On every parse (`gpxParser.parseGPXGeometry`):
+
+1. **Track pre-processing** (`trackProcessing.processTrackPoints`) — resample, elevation smooth, deadband. Runs before distance or time logic, for all routes with a track.
+2. **Processed track downstream** — stored as `route.processedTrackPoints` and as `route.gpxData.tracks[0].points`. Used for distance metrics, map polyline, elevation profile, and Swiss-model timing.
+3. **Distance calculation** (route setting) — `track` matches GPX waypoints to track segments; `waypoint-to-waypoint` uses a simpler waypoint ordering path. Both use the pre-processed polyline where a track is needed.
+4. **Time calculation** (route setting):
+   - **Naismith upgraded** — uses each leg’s aggregated `segmentDistance`, `segmentAscent`, `segmentDescent` from the table.
+   - **Swiss alpine club** — slices the pre-processed track between consecutive waypoints (`getTrackPathBetweenWaypoints`), applies the blend formula point-to-point on each short step, and sums step times.
+
+Route configuration UI order: **track pre-processing** → **distance calculation** → **time calculation**.
 
 ---
 
@@ -75,7 +97,7 @@ flowchart TB
 React entry point. Mounts `App` into the DOM.
 
 **`App.jsx`**  
-Main UI shell: route list, settings panels, waypoint table, file upload, exports, and localStorage persistence. Orchestrates everything the user sees.
+Main UI shell: route list, settings panels (including track pre-processing), waypoint table, file upload, exports, and localStorage persistence. Orchestrates everything the user sees.
 
 ---
 
@@ -85,7 +107,7 @@ Main UI shell: route list, settings panels, waypoint table, file upload, exports
 Small “report issues” link in the page corner. No app logic.
 
 **`components/RouteMap.jsx`**  
-Leaflet map: track polyline, waypoint markers, fit-to-track control.
+Leaflet map: track polyline, waypoint markers, fit-to-track control. Track line comes from `elevationProfile.getRouteTrackPoints` (pre-processed track when available).
 
 **`components/RouteElevationChart.jsx`**  
 Elevation profile chart (Recharts). Pulls chart data from `elevationProfile.js`.
@@ -101,7 +123,7 @@ shadcn primitives: button, input, textarea, card, table, tooltip, alert-dialog, 
 ### Settings & constants
 
 **`lib/constants.js`**  
-Single source of default values: proximity thresholds, speeds per activity, time-calculation methods, track-processing params, column visibility defaults, etc.
+Single source of default values: proximity thresholds, speeds per activity, time-calculation methods, track pre-processing params, column visibility defaults, etc.
 
 **`lib/routeDefaults.js`**  
 Builds and merges settings objects: new-route defaults, effective settings for saved routes (fills missing fields), column/map visibility, `localStorage` app preferences.
@@ -110,30 +132,27 @@ Builds and merges settings objects: new-route defaults, effective settings for s
 All UI strings (EN, FR, ES, CA).
 
 **`lib/utils.js`**  
-`cn()` helper for Tailwind class merging. Used by shadcn components and `App`.
+Shared helpers: Tailwind `cn()` for shadcn/`App`, and haversine distance (`calculateDistance` in km, `calculateDistanceMeters`). Used by geometry, map-related code, and exports.
 
 ---
 
 ### GPX & geometry
 
 **`lib/gpxParser.js`**  
-Parses GPX files (via `@we-gold/gpxjs`), matches waypoints to the track, computes segment distances and ascent/descent. Exposes geometry-only parsing and track path helpers.
+Parses GPX files (via `@we-gold/gpxjs`), runs track pre-processing, matches waypoints to the track, computes segment distances and ascent/descent. Exposes `parseGPXGeometry`, `getTrackPathBetweenWaypoints`, and geometry recalculation helpers.
 
 **`lib/trackProcessing.js`**  
-Preprocesses raw track points: resample, smooth elevation, deadband. Used before distance calculations on the track.
-
-**`lib/trackProcessingUtils.js`**  
-Low-level geo math (haversine distance). Shared by track processing, time calculator, and elevation profile.
+Track pre-processing: resample by distance, median elevation smooth, cumulative deadband. Output is the polyline used everywhere downstream.
 
 **`lib/elevationProfile.js`**  
-Builds distance/elevation series for the elevation chart.
+Builds distance/elevation series for the chart. Exports `getRouteTrackPoints` (pre-processed track preferred, raw track fallback) — shared with `RouteMap` and waypoint snapping in `App`.
 
 ---
 
 ### Time & table
 
 **`lib/timeCalculator.js`**  
-Segment and total hiking times (Naismith upgraded, Swiss alpine club blend). Formats times for display.
+Segment and total hiking times. **Naismith upgraded:** additive flat + ascent + descent on leg totals. **Swiss alpine club:** point-to-point blend along the processed track between waypoints (fallback: aggregated leg formula if no track). Formats times for display.
 
 **`lib/calculationService.js`**  
 Thin orchestrator: parse GPX → geometry (`gpxParser`) → times (`timeCalculator`) → normalized waypoints (`routeTableRows`). Re-exports common helpers for `App`.
@@ -152,7 +171,7 @@ Display helpers: waypoint labels, leg descriptions (origin → destination), coo
 Generates the printable route PDF (table, summary, optional map/elevation).
 
 **`lib/gpxExportService.js`**  
-Exports route back to GPX and detects whether waypoints were modified since import.
+Exports route back to GPX and detects whether waypoints were modified since import. Track in export uses `gpxData` (pre-processed when parsing used track mode).
 
 ---
 

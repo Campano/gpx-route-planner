@@ -5,6 +5,7 @@ import L from 'leaflet'
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png'
 import markerIcon from 'leaflet/dist/images/marker-icon.png'
 import markerShadow from 'leaflet/dist/images/marker-shadow.png'
+import { getRouteTrackPoints } from '../lib/elevationProfile.js'
 
 const PIN_WIDTH = 25
 const PIN_HEIGHT = 41
@@ -165,9 +166,7 @@ const FitTrackControl = ({ bounds, positions, title }) => {
 
 const RouteMap = ({ route, onAddWaypoint, onRemoveWaypoint, getWaypointDisplayName, panelState, recenterTitle }) => {
   const waypoints = route?.waypoints ?? []
-  const trackPoints = useMemo(() => {
-    return route?.gpxData?.tracks?.flatMap((track) => track.points ?? []) ?? []
-  }, [route])
+  const trackPoints = useMemo(() => getRouteTrackPoints(route) ?? [], [route])
 
   const positions = useMemo(() => {
     if (trackPoints.length > 1) {

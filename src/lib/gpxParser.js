@@ -7,6 +7,7 @@ import { parseGPX } from '@we-gold/gpxjs';
 import { fromLatLon } from 'utm';
 import { processTrackPoints } from './trackProcessing.js';
 import { createRestId } from './routeTableRows.js';
+import { calculateDistance } from './utils.js';
 import {
   MAX_SAMPLED_WAYPOINTS,
   PROXIMITY_THRESHOLD_M,
@@ -21,26 +22,6 @@ function restsFromStopDuration(stopDuration) {
 
 const PROXIMITY_THRESHOLD = PROXIMITY_THRESHOLD_M;
 const TRACK_POINT_PRECISION_TOLERANCE = TRACK_POINT_PRECISION_TOLERANCE_M;
-
-/**
- * Calculate distance between two points using Haversine formula
- * @param {number} lat1 - Latitude of point 1
- * @param {number} lon1 - Longitude of point 1
- * @param {number} lat2 - Latitude of point 2
- * @param {number} lon2 - Longitude of point 2
- * @returns {number} Distance in kilometers
- */
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371; // Earth's radius in km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
 
 /**
  * Check if two coordinates are close within tolerance
@@ -531,6 +512,17 @@ function createLogEntry(type, message, data = {}) {
   };
 }
 
+function attachProcessedTrack(geometry, parsedGPX, track, processedTrackPoints) {
+  return {
+    ...geometry,
+    gpxData: {
+      ...parsedGPX,
+      tracks: [{ ...track, points: processedTrackPoints }],
+    },
+    processedTrackPoints,
+  };
+}
+
 export function parseGPXGeometry(gpxContent, settings) {
   const log = [];
   try {
@@ -576,20 +568,12 @@ export function parseGPXGeometry(gpxContent, settings) {
       log.push(createLogEntry('info', `${gpxWaypoints.length} waypoint(s) detected in GPX file`));
     }
     
-    // Check distance calculation method
-    const distanceMethod = settings?.distanceCalculationMethod || 'track';
-    
-    // If using waypoint-to-waypoint method, use simpler calculation
-    if (distanceMethod === 'waypoint-to-waypoint') {
-      return parseWaypointToWaypoint(gpxWaypoints, trackPoints, settings, track.name, log);
-    }
-
-    // Track-based: preprocess raw GPX track (resample / smooth / elevation deadband).
-    // Original GPX is never modified — only an in-memory polyline for distance math.
+    // Preprocess raw GPX track (resample / smooth / elevation deadband).
+    // Original GPX content is never modified — processed polyline is used downstream.
     const rawPointCount = trackPoints.length;
     const processed = processTrackPoints(trackPoints, settings);
-    const trackPointsForDistance = processed.points;
-    log.push(createLogEntry('info', 'Track processed for distance calculation', {
+    const processedTrackPoints = processed.points;
+    log.push(createLogEntry('info', 'Track processed', {
       originalPointCount: processed.originalPointCount,
       processedPointCount: processed.processedPointCount,
       resampleSpacingM: processed.resampleSpacingM,
@@ -597,11 +581,24 @@ export function parseGPXGeometry(gpxContent, settings) {
       elevationDeadbandM: processed.elevationDeadbandM,
     }));
     console.log(
-      `[GPX Parser] Track processing: ${rawPointCount} → ${trackPointsForDistance.length} points`
+      `[GPX Parser] Track processing: ${rawPointCount} → ${processedTrackPoints.length} points`
     );
+
+    const wrapGeometry = (geometry) =>
+      attachProcessedTrack(geometry, parsedGPX, track, processedTrackPoints);
+
+    // Check distance calculation method
+    const distanceMethod = settings?.distanceCalculationMethod || 'track';
+
+    // If using waypoint-to-waypoint method, use simpler calculation
+    if (distanceMethod === 'waypoint-to-waypoint') {
+      return wrapGeometry(
+        parseWaypointToWaypoint(gpxWaypoints, processedTrackPoints, settings, track.name, log)
+      );
+    }
     
     // Create route segments based on waypoints (track-based method)
-    const routeSegments = createRouteSegments(trackPointsForDistance, gpxWaypoints);
+    const routeSegments = createRouteSegments(processedTrackPoints, gpxWaypoints);
     
     // If no waypoints are close to the track, use track points as waypoints
     if (routeSegments.length === 0) {
@@ -609,7 +606,9 @@ export function parseGPXGeometry(gpxContent, settings) {
       log.push(createLogEntry('warning', 'No waypoints found close to track', {
         action: 'Using track points as waypoints'
       }));
-      return parseTrackAsWaypoints(trackPointsForDistance, settings, track.name, log);
+      return wrapGeometry(
+        parseTrackAsWaypoints(processedTrackPoints, settings, track.name, log)
+      );
     }
     
     // Convert segments to waypoints with geometric calculations only
@@ -619,8 +618,8 @@ export function parseGPXGeometry(gpxContent, settings) {
     let totalDescent = 0;
     
     // Add start waypoint
-    if (trackPointsForDistance.length > 0) {
-      const startPoint = trackPointsForDistance[0];
+    if (processedTrackPoints.length > 0) {
+      const startPoint = processedTrackPoints[0];
       const matchingStart = gpxWaypoints.find(wp =>
         coordinatesAreClose(wp.latitude, wp.longitude, startPoint.latitude, startPoint.longitude)
       );
@@ -660,7 +659,7 @@ export function parseGPXGeometry(gpxContent, settings) {
 
       // Calculate track-based metrics (following the actual track)
       const trackMetrics = calculateTrackSegmentMetrics(
-        trackPointsForDistance,
+        processedTrackPoints,
         previousWaypoint.latitude,
         previousWaypoint.longitude,
         targetPoint.latitude,
@@ -710,8 +709,8 @@ export function parseGPXGeometry(gpxContent, settings) {
     });
     
     // Add end waypoint
-    if (trackPointsForDistance.length > 0) {
-      const endPoint = trackPointsForDistance[trackPointsForDistance.length - 1];
+    if (processedTrackPoints.length > 0) {
+      const endPoint = processedTrackPoints[processedTrackPoints.length - 1];
       const matchingEnd = gpxWaypoints.find(wp =>
         coordinatesAreClose(wp.latitude, wp.longitude, endPoint.latitude, endPoint.longitude)
       );
@@ -728,7 +727,7 @@ export function parseGPXGeometry(gpxContent, settings) {
       if (!isLastAtEnd) {
         const endMetrics = lastWaypoint
           ? calculateTrackSegmentMetrics(
-              trackPointsForDistance,
+              processedTrackPoints,
               lastWaypoint.latitude,
               lastWaypoint.longitude,
               endPoint.latitude,
@@ -782,22 +781,20 @@ export function parseGPXGeometry(gpxContent, settings) {
     }
     
     // Update final waypoint metrics and remove duplicates
-    const finalUpdate = updateFinalWaypointMetrics(waypoints, trackPointsForDistance);
+    const finalUpdate = updateFinalWaypointMetrics(waypoints, processedTrackPoints);
     const waypointsWithMetrics = addTrackAndDirectMetrics(finalUpdate.waypoints);
     
-    return {
-      gpxData: parsedGPX,
+    return wrapGeometry({
       waypoints: waypointsWithMetrics,
-      processedTrackPoints: trackPointsForDistance,
       metadata: {
         name: track.name || 'Unnamed Route',
         totalDistance: finalUpdate.totals?.totalDistance ?? totalDistance,
         totalAscent: finalUpdate.totals?.totalAscent ?? totalAscent,
         totalDescent: finalUpdate.totals?.totalDescent ?? totalDescent,
-        maxElevation: calculateMaxElevation(trackPointsForDistance)
+        maxElevation: calculateMaxElevation(processedTrackPoints),
       },
-      log
-    };
+      log,
+    });
   } catch (error) {
     console.error('Error parsing GPX file:', error);
     throw error;

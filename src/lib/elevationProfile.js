@@ -1,4 +1,4 @@
-import { calculateDistance } from './trackProcessingUtils.js'
+import { calculateDistance } from './utils.js'
 
 function findNearestTrackPointIndex(trackPoints, latitude, longitude) {
   if (!Array.isArray(trackPoints) || trackPoints.length === 0) {

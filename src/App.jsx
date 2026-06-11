@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table.jsx'
-import { Upload, Mountain, Settings2, FileText, Trash2, Download, EyeOff, Home, Edit3, AlertTriangle, X, OctagonPause, Footprints, Snowflake, Zap, Heart, FileSpreadsheet, Info, AlertCircle, Clock, MapPin, FileDown, CircleHelp, Route, Timer, Columns3, Map as MapIcon } from 'lucide-react'
+import { Upload, Mountain, Settings2, FileText, Trash2, Download, EyeOff, Home, Edit3, AlertTriangle, X, OctagonPause, Footprints, Snowflake, Zap, Heart, FileSpreadsheet, Info, AlertCircle, Clock, MapPin, FileDown, CircleHelp, Route, Timer, Columns3, Map as MapIcon, Layers } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip.jsx'
 import { parseGPXFile, recalculateWaypoints, recalculateWaypointGeometry, formatTimeHoursMinutes, formatTimeHoursMinutesForMin, formatTotalTimeWithPercentage } from './lib/calculationService.js'
@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge.jsx'
 import GitHubCorner from './components/GitHubCorner.jsx'
 import RouteMap from './components/RouteMap.jsx'
 import RouteElevationChart from './components/RouteElevationChart.jsx'
+import { getRouteTrackPoints } from './lib/elevationProfile.js'
 import RouteSummaryDescription from './components/RouteSummaryDescription.jsx'
 import packageJson from '../package.json'
 import { translations, languages } from './lib/translations.js'
@@ -429,7 +430,6 @@ function App() {
   const [waypointModificationAction, setWaypointModificationAction] = useState(null)
   const [suppressWarningCheckbox, setSuppressWarningCheckbox] = useState(false)
   const [showNoWaypointsAlert, setShowNoWaypointsAlert] = useState(false)
-  const [showAdvancedTrackOptions, setShowAdvancedTrackOptions] = useState(false)
   const dragCounterRef = useRef(0)
 
   // Translation helper
@@ -500,7 +500,7 @@ function App() {
         const routesWithLog = parsedRoutes.map((route) => {
           const settings = getEffectiveRouteSettings(route)
           let processedTrackPoints = route.processedTrackPoints ?? null
-          if (!processedTrackPoints && route.gpxContent && settings.distanceCalculationMethod !== 'waypoint-to-waypoint') {
+          if (!processedTrackPoints && route.gpxContent) {
             try {
               const geometry = parseGPXGeometry(route.gpxContent, settings)
               processedTrackPoints = geometry.processedTrackPoints ?? null
@@ -543,12 +543,9 @@ function App() {
 
   const getEffectiveSettings = getEffectiveRouteSettings
 
-  const getTimeRecalcOptions = (route, settings) => {
-    if (settings?.distanceCalculationMethod === 'waypoint-to-waypoint') {
-      return {}
-    }
-    return { processedTrackPoints: route?.processedTrackPoints ?? null }
-  }
+  const getTimeRecalcOptions = (route) => ({
+    processedTrackPoints: route?.processedTrackPoints ?? null,
+  })
 
   // Update route metadata based on last waypoint
   const updateRouteMetadata = (route, waypoints) => {
@@ -921,8 +918,7 @@ function App() {
     if (!isFinite(lat) || !isFinite(lng)) return
     
     const addWaypoint = () => {
-      const trackPoints =
-        selectedRoute.gpxData?.tracks?.flatMap((track) => track.points || []) ?? []
+      const trackPoints = getRouteTrackPoints(selectedRoute) ?? []
       const nearestTrackPoint = findNearestTrackPoint(lat, lng, trackPoints)
       const snappedLat = nearestTrackPoint?.latitude ?? lat
       const snappedLng = nearestTrackPoint?.longitude ?? lng
@@ -2406,6 +2402,104 @@ function App() {
                 </div>
               </CardHeader>
               <CardContent className="route-config-panel__content">
+                <RouteConfigSection title={t('trackPreProcessing')} icon={Layers}>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <div className="flex items-center gap-0.5 min-h-[14px]">
+                        <label className="text-[10px] font-medium leading-none">{t('resampling')}</label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex text-muted-foreground hover:text-foreground"
+                              aria-label={t('resampleSpacingTip')}
+                            >
+                              <CircleHelp className="w-3 h-3" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[200px] text-[11px] leading-snug">
+                            {t('resampleSpacingTip')}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={50}
+                        step={1}
+                        value={getEffectiveSettings(selectedRoute).resampleSpacingM ?? 3}
+                        onChange={(e) =>
+                          updateRouteSettings('resampleSpacingM', parseFloat(e.target.value) || 3)
+                        }
+                        className="settings-input"
+                        title={t('resampleSpacing')}
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-0.5 min-h-[14px]">
+                        <label className="text-[10px] font-medium leading-none">{t('smoothing')}</label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex text-muted-foreground hover:text-foreground"
+                              aria-label={t('smoothWindowTip')}
+                            >
+                              <CircleHelp className="w-3 h-3" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[200px] text-[11px] leading-snug">
+                            {t('smoothWindowTip')}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={200}
+                        step={1}
+                        value={getEffectiveSettings(selectedRoute).smoothWindowM ?? 15}
+                        onChange={(e) =>
+                          updateRouteSettings('smoothWindowM', parseFloat(e.target.value) || 15)
+                        }
+                        className="settings-input"
+                        title={t('smoothWindow')}
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-0.5 min-h-[14px]">
+                        <label className="text-[10px] font-medium leading-none">{t('deadband')}</label>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              type="button"
+                              className="inline-flex text-muted-foreground hover:text-foreground"
+                              aria-label={t('elevationDeadbandTip')}
+                            >
+                              <CircleHelp className="w-3 h-3" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[200px] text-[11px] leading-snug">
+                            {t('elevationDeadbandTip')}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={20}
+                        step={0.5}
+                        value={getEffectiveSettings(selectedRoute).elevationDeadbandM ?? 2}
+                        onChange={(e) =>
+                          updateRouteSettings('elevationDeadbandM', parseFloat(e.target.value) || 0)
+                        }
+                        className="settings-input"
+                        title={t('elevationDeadband')}
+                      />
+                    </div>
+                  </div>
+                </RouteConfigSection>
+
                 <RouteConfigSection title={t('distanceCalculation')} icon={Route}>
                   <div>
                     <div className="flex items-center gap-0.5 mb-0.5">
@@ -2414,128 +2508,13 @@ function App() {
                     </div>
                     <select
                       value={getEffectiveSettings(selectedRoute).distanceCalculationMethod}
-                      onChange={(e) => {
-                        const method = e.target.value
-                        if (method !== 'track') {
-                          setShowAdvancedTrackOptions(false)
-                        }
-                        updateRouteSettings('distanceCalculationMethod', method)
-                      }}
+                      onChange={(e) => updateRouteSettings('distanceCalculationMethod', e.target.value)}
                       className="settings-input w-full border border-input bg-background rounded-md"
                     >
                       <option value="track">{t('trackBased')}</option>
                       <option value="waypoint-to-waypoint">{t('waypointToWaypoint')}</option>
                     </select>
                   </div>
-                    {getEffectiveSettings(selectedRoute).distanceCalculationMethod === 'track' && (
-                      <div className="route-config-subsection">
-                        <label className="flex items-center gap-1.5 cursor-pointer">
-                          <Checkbox
-                            checked={showAdvancedTrackOptions}
-                            onCheckedChange={(checked) => setShowAdvancedTrackOptions(checked === true)}
-                            className="h-3.5 w-3.5"
-                          />
-                          <span className="text-[10px]">{t('showAdvancedOptions')}</span>
-                        </label>
-                        {showAdvancedTrackOptions && (
-                          <div className="grid grid-cols-3 gap-2">
-                            <div>
-                              <div className="flex items-center gap-0.5 min-h-[14px]">
-                                <label className="text-[10px] font-medium leading-none">{t('resampling')}</label>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      type="button"
-                                      className="inline-flex text-muted-foreground hover:text-foreground"
-                                      aria-label={t('resampleSpacingTip')}
-                                    >
-                                      <CircleHelp className="w-3 h-3" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" className="max-w-[200px] text-[11px] leading-snug">
-                                    {t('resampleSpacingTip')}
-                                  </TooltipContent>
-                                </Tooltip>
-                              </div>
-                              <Input
-                                type="number"
-                                min={1}
-                                max={50}
-                                step={1}
-                                value={getEffectiveSettings(selectedRoute).resampleSpacingM ?? 3}
-                                onChange={(e) =>
-                                  updateRouteSettings('resampleSpacingM', parseFloat(e.target.value) || 3)
-                                }
-                                className="settings-input"
-                                title={t('resampleSpacing')}
-                              />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-0.5 min-h-[14px]">
-                                <label className="text-[10px] font-medium leading-none">{t('smoothing')}</label>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      type="button"
-                                      className="inline-flex text-muted-foreground hover:text-foreground"
-                                      aria-label={t('smoothWindowTip')}
-                                    >
-                                      <CircleHelp className="w-3 h-3" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" className="max-w-[200px] text-[11px] leading-snug">
-                                    {t('smoothWindowTip')}
-                                  </TooltipContent>
-                                </Tooltip>
-                              </div>
-                              <Input
-                                type="number"
-                                min={1}
-                                max={200}
-                                step={1}
-                                value={getEffectiveSettings(selectedRoute).smoothWindowM ?? 15}
-                                onChange={(e) =>
-                                  updateRouteSettings('smoothWindowM', parseFloat(e.target.value) || 15)
-                                }
-                                className="settings-input"
-                                title={t('smoothWindow')}
-                              />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-0.5 min-h-[14px]">
-                                <label className="text-[10px] font-medium leading-none">{t('deadband')}</label>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      type="button"
-                                      className="inline-flex text-muted-foreground hover:text-foreground"
-                                      aria-label={t('elevationDeadbandTip')}
-                                    >
-                                      <CircleHelp className="w-3 h-3" />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top" className="max-w-[200px] text-[11px] leading-snug">
-                                    {t('elevationDeadbandTip')}
-                                  </TooltipContent>
-                                </Tooltip>
-                              </div>
-                              <Input
-                                type="number"
-                                min={0}
-                                max={20}
-                                step={0.5}
-                                value={getEffectiveSettings(selectedRoute).elevationDeadbandM ?? 2}
-                                onChange={(e) =>
-                                  updateRouteSettings('elevationDeadbandM', parseFloat(e.target.value) || 0)
-                                }
-                                className="settings-input"
-                                title={t('elevationDeadband')}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
                 </RouteConfigSection>
 
                 <RouteConfigSection title={t('timeCalculation')} icon={Timer}>

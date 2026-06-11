@@ -8,7 +8,7 @@ import {
   TIME_CALCULATION_METHODS,
 } from './constants.js'
 import { getTrackPathBetweenWaypoints } from './gpxParser.js'
-import { calculateDistance } from './trackProcessingUtils.js'
+import { calculateDistance } from './utils.js'
 
 export {
   DEFAULT_DOWNHILL_FACTOR,

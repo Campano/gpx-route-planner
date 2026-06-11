@@ -4,7 +4,7 @@
  */
 
 import { DEFAULT_TRACK_PROCESSING } from './constants.js'
-import { calculateDistance } from './trackProcessingUtils.js'
+import { calculateDistance } from './utils.js'
 
 export { DEFAULT_TRACK_PROCESSING } from './constants.js'
 
