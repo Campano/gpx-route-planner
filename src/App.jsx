@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input.jsx'
 import { Textarea } from '@/components/ui/textarea.jsx'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card.jsx'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table.jsx'
-import { Upload, Mountain, Settings2, FileText, Trash2, Download, EyeOff, Home, Edit3, AlertTriangle, X, OctagonPause, Footprints, Snowflake, Zap, Heart, FileSpreadsheet, Info, AlertCircle, Clock, MapPin, FileDown, CircleHelp, Route, Timer, Columns3, Map } from 'lucide-react'
+import { Upload, Mountain, Settings2, FileText, Trash2, Download, EyeOff, Home, Edit3, AlertTriangle, X, OctagonPause, Footprints, Snowflake, Zap, Heart, FileSpreadsheet, Info, AlertCircle, Clock, MapPin, FileDown, CircleHelp, Route, Timer, Columns3, Map as MapIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip.jsx'
 import { parseGPXFile, recalculateWaypoints, recalculateWaypointGeometry, formatTimeHoursMinutes, formatTimeHoursMinutesForMin, formatTotalTimeWithPercentage } from './lib/calculationService.js'
@@ -1114,7 +1114,7 @@ function App() {
   ]
 
   const mergeLogsAfterReparse = (existingLog, newLog, settingsLogEntry) => {
-    const existingLogMap = new Map()
+    const existingLogMap = new globalThis.Map()
     existingLog.forEach((entry) => {
       const key = `${entry.timestamp}-${entry.type}-${entry.message}`
       if (entry.read !== undefined) {
@@ -2702,7 +2702,7 @@ function App() {
                         </div>
                 </RouteConfigSection>
 
-                <RouteConfigSection title={t('routeView')} icon={Map}>
+                <RouteConfigSection title={t('routeView')} icon={MapIcon}>
                     <p className="text-[10px] text-muted-foreground leading-snug">{t('routeViewDesc')}</p>
                     <div className="space-y-1">
                       <label className="flex items-center gap-1.5 cursor-pointer">
